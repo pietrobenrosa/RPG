@@ -1,296 +1,222 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1920" height="1080" viewBox="0 0 1920 1080" shape-rendering="crispEdges">
-  <title>Sala de hibernação — pixel art 2.5D</title>
-  <desc>Uma sala de bunker desenhada como cenário 3D em perspectiva, em pixel art nativa: cápsulas, uma aberta, sirene vermelha, manchas estilizadas no piso e uma porta aberta para um corredor profundo.</desc>
-  <!-- Paleta e luz: formas alinhadas a uma grade de pixels, sem filtros ou interpolação -->
-  <rect width="1920" height="1080" fill="#070b11"/>
-  <!-- parede do fundo, com canto e profundidade -->
-  <path d="M0 0H1920V642L1610 700H248L0 642Z" fill="#18232c"/>
-  <path d="M0 0H1920V58H0Z" fill="#33414a"/>
-  <path d="M0 58H1920V82H0Z" fill="#101820"/>
-  <path d="M0 82H1920V102H0Z" fill="#26343d"/>
-  <path d="M0 102H1920V132H0Z" fill="#1c2932"/>
-  <!-- painéis e vigas da parede -->
-  <path d="M0 132H190V642H0Z" fill="#202d36"/>
-  <path d="M180 132H194V642H180Z" fill="#0e171e"/>
-  <path d="M194 132H208V642H194Z" fill="#42515a"/>
-  <path d="M630 132H644V642H630Z" fill="#101a21"/>
-  <path d="M644 132H658V642H644Z" fill="#42515a"/>
-  <path d="M1110 132H1128V642H1110Z" fill="#101a21"/>
-  <path d="M1128 132H1144V642H1128Z" fill="#42515a"/>
-  <path d="M1600 132H1616V700H1600Z" fill="#0b1218"/>
-  <path d="M1616 132H1632V697H1616Z" fill="#42515a"/>
-  <path d="M208 284H1600V300H208Z" fill="#101820"/>
-  <path d="M208 300H1600V308H208Z" fill="#34434a"/>
-  <path d="M208 604H1600V620H208Z" fill="#101820"/>
-  <path d="M208 620H1600V628H208Z" fill="#34434a"/>
-  <!-- tubulações no teto e sombras -->
-  <path d="M0 148H1380V170H0Z" fill="#0b1219"/>
-  <path d="M0 148H1380V156H0Z" fill="#596970"/>
-  <path d="M76 178H1282V188H76Z" fill="#3e5159"/>
-  <path d="M112 188H132V250H112Z" fill="#26343d"/>
-  <path d="M1180 170H1200V254H1180Z" fill="#26343d"/>
-  <path d="M300 156H340V170H300Z" fill="#87a1a0"/>
-  <path d="M716 156H756V170H716Z" fill="#87a1a0"/>
-  <path d="M1040 156H1080V170H1040Z" fill="#87a1a0"/>
-  <!-- luzes frias no teto -->
-  <path d="M270 196H510V208H270Z" fill="#55777b"/>
-  <path d="M286 200H494V204H286Z" fill="#a0d4c7"/>
-  <path d="M700 196H940V208H700Z" fill="#55777b"/>
-  <path d="M716 200H924V204H716Z" fill="#a0d4c7"/>
-  <path d="M1120 196H1320V208H1120Z" fill="#55777b"/>
-  <path d="M1136 200H1304V204H1136Z" fill="#a0d4c7"/>
-  <!-- placa do setor -->
-  <path d="M82 220H364V292H82Z" fill="#0d151c"/>
-  <path d="M90 228H356V284H90Z" fill="#26343c"/>
-  <path d="M100 238H346V276H100Z" fill="#111c23"/>
-  <path d="M110 246H126V250H110ZM134 246H142V250H134ZM150 246H166V250H150ZM174 246H182V250H174ZM190 246H206V250H190ZM214 246H222V250H214ZM230 246H246V250H230ZM254 246H262V250H254ZM270 246H286V250H270ZM294 246H302V250H294ZM310 246H326V250H310Z" fill="#8aa5a5"/>
-  <path d="M110 260H134V264H110ZM142 260H158V264H142ZM166 260H174V264H166ZM182 260H198V264H182ZM206 260H230V264H206ZM238 260H254V264H238ZM262 260H278V264H262ZM286 260H310V264H286ZM318 260H334V264H318Z" fill="#d5b459"/>
-  <path d="M90 228H356V236H90ZM90 276H356V284H90Z" fill="#53636a"/>
-  <!-- controle de temperatura -->
-  <path d="M520 222H642V288H520Z" fill="#0b1219"/>
-  <path d="M528 230H634V280H528Z" fill="#33464c"/>
-  <path d="M538 238H624V266H538Z" fill="#101b21"/>
-  <path d="M546 246H574V250H546ZM582 246H610V250H582ZM546 254H558V258H546ZM566 254H610V258H566Z" fill="#59d6bd"/>
-  <path d="M538 272H570V276H538Z" fill="#d74b42"/>
-  <path d="M578 272H624V276H578Z" fill="#bca65e"/>
-  <!-- sirene vermelha acesa e painel de alarme -->
-  <path d="M1376 208H1560V348H1376Z" fill="#0d151c"/>
-  <path d="M1386 218H1550V338H1386Z" fill="#35444b"/>
-  <path d="M1396 228H1540V318H1396Z" fill="#111a20"/>
-  <path d="M1412 242H1524V294H1412Z" fill="#6d1b25"/>
-  <path d="M1420 250H1516V286H1420Z" fill="#d63739"/>
-  <path d="M1432 242H1504V250H1432Z" fill="#ff9b72"/>
-  <path d="M1440 258H1496V278H1440Z" fill="#f65b4c"/>
-  <path d="M1412 302H1524V310H1412Z" fill="#a73235"/>
-  <path d="M1386 218H1550V226H1386ZM1386 330H1550V338H1386Z" fill="#66757a"/>
-  <!-- reflexo vermelho projetado na parede, em blocos -->
-  <path d="M1330 340H1380V352H1330Z" fill="#45212a"/>
-  <path d="M1300 354H1376V366H1300Z" fill="#321d27"/>
-  <path d="M1350 370H1380V378H1350Z" fill="#52242a"/>
-  <path d="M1558 350H1588V362H1558Z" fill="#46212a"/>
-  <path d="M1560 370H1590V378H1560Z" fill="#321d27"/>
-  <path d="M1400 362H1538V410H1400Z" fill="#10181e"/>
-  <path d="M1410 372H1528V380H1410Z" fill="#dd4941"/>
-  <path d="M1410 390H1490V398H1410Z" fill="#d3a94b"/>
-  <path d="M1500 390H1528V398H1500Z" fill="#d7433d"/>
-  <!-- cápsula distante: menor por perspectiva -->
-  <path d="M270 340H472V610H270Z" fill="#0a1117"/>
-  <path d="M282 352H460V594H282Z" fill="#3b505a"/>
-  <path d="M294 364H448V540H294Z" fill="#29434e"/>
-  <path d="M306 378H436V518H306Z" fill="#678783"/>
-  <path d="M318 390H424V504H318Z" fill="#94aaa0"/>
-  <path d="M326 466H416V490H326Z" fill="#d0d0b6"/>
-  <path d="M342 432H398V466H342Z" fill="#998578"/>
-  <path d="M350 416H390V436H350Z" fill="#c7a48a"/>
-  <path d="M358 408H382V416H358Z" fill="#18232c"/>
-  <path d="M282 352H460V364H282Z" fill="#a8b9b6"/>
-  <path d="M282 536H460V552H282Z" fill="#10191f"/>
-  <path d="M294 552H448V574H294Z" fill="#111a20"/>
-  <path d="M310 558H364V566H310Z" fill="#4bd1b4"/>
-  <path d="M380 558H432V566H380Z" fill="#d8ac4d"/>
-  <path d="M340 594H404V618H340Z" fill="#36454a"/>
-  <!-- cápsula principal fechada -->
-  <path d="M520 318H760V626H520Z" fill="#080f15"/>
-  <path d="M532 330H748V610H532Z" fill="#465b64"/>
-  <path d="M544 342H736V546H544Z" fill="#223d48"/>
-  <path d="M556 354H724V526H556Z" fill="#66857f"/>
-  <path d="M568 366H712V514H568Z" fill="#a1b5a5"/>
-  <path d="M580 470H700V496H580Z" fill="#d8d6bb"/>
-  <path d="M594 438H686V470H594Z" fill="#9a8474"/>
-  <path d="M608 414H670V442H608Z" fill="#c8a58b"/>
-  <path d="M624 404H654V414H624Z" fill="#1c2830"/>
-  <path d="M532 330H748V342H532Z" fill="#bac6bb"/>
-  <path d="M532 538H748V562H532Z" fill="#0c151c"/>
-  <path d="M544 562H736V590H544Z" fill="#10191f"/>
-  <path d="M562 570H638V582H562Z" fill="#d3ae52"/>
-  <path d="M650 570H716V582H650Z" fill="#46c5b0"/>
-  <path d="M604 610H676V638H604Z" fill="#35434a"/>
-  <!-- cápsula aberta em primeiro plano, com volume, aro e tampa levantada -->
-  <path d="M800 308H1150V650H800Z" fill="#080e14"/>
-  <path d="M812 320H1138V636H812Z" fill="#55666a"/>
-  <path d="M826 334H1124V580H826Z" fill="#263e48"/>
-  <path d="M840 348H1110V562H840Z" fill="#182e39"/>
-  <!-- brilho interno frio -->
-  <path d="M856 360H1094V374H856Z" fill="#4a8586"/>
-  <path d="M856 374H872V506H856Z" fill="#386a73"/>
-  <path d="M1080 374H1094V506H1080Z" fill="#386a73"/>
-  <!-- colchão vazio e manta caída em blocos -->
-  <path d="M866 442H1082V526H866Z" fill="#788b82"/>
-  <path d="M882 426H1002V454H882Z" fill="#b4bba8"/>
-  <path d="M1002 438H1066V454H1002Z" fill="#a7b0a1"/>
-  <path d="M884 454H914V466H884Z" fill="#c7c7ae"/>
-  <path d="M930 462H1018V476H930Z" fill="#667c78"/>
-  <path d="M1018 454H1070V470H1018Z" fill="#8e9b8e"/>
-  <path d="M872 490H944V506H872Z" fill="#637872"/>
-  <path d="M966 490H1042V506H966Z" fill="#c0c1a8"/>
-  <!-- braços mecânicos da tampa aberta -->
-  <path d="M816 324H832V388H816Z" fill="#a9b5ae"/>
-  <path d="M1122 324H1138V388H1122Z" fill="#a9b5ae"/>
-  <path d="M808 314H836V330H808Z" fill="#d2b45b"/>
-  <path d="M1118 314H1146V330H1118Z" fill="#d2b45b"/>
-  <!-- tampa de vidro aberta, projetada para cima e para trás -->
-  <path d="M842 326H858V300H874V274H890V248H906V222H922V196H938V170H954V154H1006V170H990V196H974V222H958V248H942V274H926V300H910V326Z" fill="#657a7a"/>
-  <path d="M858 314H874V288H890V262H906V236H922V210H938V184H954V170H988V180H972V206H956V232H940V258H924V284H908V310H892V326H858Z" fill="#47747a"/>
-  <path d="M874 302H890V276H906V250H922V224H938V198H954V184H978V194H962V220H946V246H930V272H914V298H898V318H874Z" fill="#6caaa4"/>
-  <path d="M902 256H918V230H934V204H950V190H966V198H950V224H934V250H918V276H902Z" fill="#9ac8b5"/>
-  <path d="M842 326H910V338H842Z" fill="#cad0bd"/>
-  <path d="M954 154H1006V170H954Z" fill="#a8b7ae"/>
-  <path d="M978 172H1000V188H978Z" fill="#d4b75f"/>
-  <!-- sinais de vidro quebrado, poucos pixels -->
-  <path d="M930 202H942V210H930ZM914 228H926V236H914ZM898 254H910V262H898ZM882 280H894V288H882Z" fill="#d0e0cb"/>
-  <!-- console frontal da cápsula aberta -->
-  <path d="M826 536H1124V594H826Z" fill="#10191f"/>
-  <path d="M842 546H1108V586H842Z" fill="#24343a"/>
-  <path d="M858 554H940V562H858Z" fill="#e0ad4a"/>
-  <path d="M950 554H1018V562H950Z" fill="#d54b43"/>
-  <path d="M1028 554H1090V562H1028Z" fill="#4ac8b3"/>
-  <path d="M858 570H900V578H858Z" fill="#5b7275"/>
-  <path d="M910 570H978V578H910Z" fill="#637a79"/>
-  <path d="M988 570H1040V578H988Z" fill="#4c6066"/>
-  <path d="M1060 570H1090V578H1060Z" fill="#d7b85c"/>
-  <path d="M918 636H1032V664H918Z" fill="#35444a"/>
-  <path d="M930 644H1020V652H930Z" fill="#657378"/>
-  <!-- armário de suprimentos encostado na parede direita -->
-  <path d="M1176 404H1320V638H1176Z" fill="#10171d"/>
-  <path d="M1188 416H1308V626H1188Z" fill="#35464d"/>
-  <path d="M1200 428H1296V488H1200Z" fill="#111b22"/>
-  <path d="M1212 440H1284V476H1212Z" fill="#294b4e"/>
-  <path d="M1220 448H1248V456H1220Z" fill="#58d6bb"/>
-  <path d="M1256 448H1276V456H1256Z" fill="#db4b40"/>
-  <path d="M1200 500H1296V510H1200Z" fill="#829093"/>
-  <path d="M1212 526H1248V590H1212Z" fill="#4a5555"/>
-  <path d="M1258 526H1284V590H1258Z" fill="#48585a"/>
-  <path d="M1218 534H1242V556H1218Z" fill="#a43735"/>
-  <path d="M1262 534H1280V546H1262Z" fill="#d9c58f"/>
-  <path d="M1262 554H1280V566H1262Z" fill="#55b6a4"/>
-  <path d="M1198 610H1298V626H1198Z" fill="#10191f"/>
-  <!-- silhueta de carrinho médico no canto -->
-  <path d="M82 594H224V614H82Z" fill="#48575b"/>
-  <path d="M98 614H108V646H98ZM198 614H208V646H198Z" fill="#202b30"/>
-  <path d="M86 642H116V650H86ZM190 642H220V650H190Z" fill="#aeb5a5"/>
-  <path d="M96 552H210V594H96Z" fill="#8d9c91"/>
-  <path d="M108 562H198V586H108Z" fill="#334b50"/>
-  <path d="M116 566H146V582H116Z" fill="#bd4140"/>
-  <path d="M154 566H190V582H154Z" fill="#d4c28e"/>
-  <!-- porta aberta: moldura espessa e perspectiva para o corredor -->
-  <path d="M1372 210H1800V742H1372Z" fill="#070b10"/>
-  <path d="M1392 230H1780V722H1392Z" fill="#56656a"/>
-  <path d="M1410 250H1762V704H1410Z" fill="#111a20"/>
-  <!-- chão e paredes internas do corredor convergem ao fundo -->
-  <path d="M1410 250H1762V432L1586 504L1410 432Z" fill="#25343b"/>
-  <path d="M1410 250H1762V292H1410Z" fill="#46565b"/>
-  <path d="M1410 292H1762V304H1410Z" fill="#17232a"/>
-  <path d="M1410 304H1500L1586 388L1410 418Z" fill="#202d34"/>
-  <path d="M1762 304H1674L1586 388L1762 418Z" fill="#202d34"/>
-  <path d="M1500 304H1674L1586 388Z" fill="#34464a"/>
-  <path d="M1410 432L1586 504L1762 432V704H1410Z" fill="#26343a"/>
-  <path d="M1410 432L1586 504L1586 704H1410Z" fill="#303d40"/>
-  <path d="M1586 504V704H1762V432Z" fill="#202d33"/>
-  <path d="M1430 464L1586 520V532L1430 480Z" fill="#49575a"/>
-  <path d="M1742 464L1586 520V532L1742 480Z" fill="#3b4a4e"/>
-  <path d="M1430 464H1450V640H1430Z" fill="#3b4b4f"/>
-  <path d="M1722 464H1742V640H1722Z" fill="#35444a"/>
-  <path d="M1450 480H1470V620H1450Z" fill="#18252b"/>
-  <path d="M1702 480H1722V620H1702Z" fill="#18252b"/>
-  <!-- corredor distante, iluminação quebrada e porta de fundo -->
-  <path d="M1510 390H1662V404H1510Z" fill="#71817c"/>
-  <path d="M1522 394H1650V400H1522Z" fill="#c5bf95"/>
-  <path d="M1530 416H1642V474H1530Z" fill="#0b1116"/>
-  <path d="M1542 428H1630V462H1542Z" fill="#182229"/>
-  <path d="M1578 428H1594V462H1578Z" fill="#d94b40"/>
-  <path d="M1550 436H1562V444H1550ZM1608 436H1620V444H1608Z" fill="#a33a36"/>
-  <path d="M1570 452H1602V458H1570Z" fill="#b83e39"/>
-  <path d="M1562 382H1610V390H1562Z" fill="#d7b65a"/>
-  <!-- parede lateral aberta da porta voltada à câmera -->
-  <path d="M1372 210L1300 252V744L1372 742Z" fill="#293a41"/>
-  <path d="M1360 238L1320 262V706L1360 704Z" fill="#17242b"/>
-  <path d="M1310 252H1320V738H1310Z" fill="#839092"/>
-  <path d="M1340 438H1352V482H1340Z" fill="#d5b34f"/>
-  <path d="M1352 446H1360V474H1352Z" fill="#e8ce75"/>
-  <path d="M1292 232H1310V756H1292Z" fill="#8e3034"/>
-  <path d="M1292 232H1310V250H1292Z" fill="#dc4a40"/>
-  <path d="M1292 738H1310V756H1292Z" fill="#dc4a40"/>
-  <!-- placas e cabos no corredor -->
-  <path d="M1430 540H1478V548H1430ZM1694 540H1742V548H1694Z" fill="#d2a84a"/>
-  <path d="M1440 554H1470V562H1440ZM1704 554H1734V562H1704Z" fill="#56686b"/>
-  <path d="M1430 582H1460V590H1430ZM1712 582H1742V590H1712Z" fill="#b7403a"/>
-  <path d="M1478 632H1500V644H1478V660H1490V674H1520" fill="none" stroke="#d7a64b" stroke-width="8"/>
-  <path d="M1700 630H1684V652H1668V670H1644" fill="none" stroke="#457f7a" stroke-width="8"/>
-  <path d="M1384 214H1790V230H1384Z" fill="#a4b0a8"/>
-  <path d="M1384 714H1790V730H1384Z" fill="#a4b0a8"/>
-  <path d="M1780 230H1798V730H1780Z" fill="#738287"/>
-  <!-- piso da sala: perspectiva em profundidade, juntas e placas quadradas -->
-  <path d="M0 642L248 700H1610L1920 642V1080H0Z" fill="#30393b"/>
-  <path d="M0 642L248 700H1610L1920 642V724H0Z" fill="#394345"/>
-  <path d="M0 642L248 700H1610L1920 642V654L248 712H0Z" fill="#59625d"/>
-  <path d="M0 724H1920V744H0Z" fill="#202a2d"/>
-  <!-- linhas de fuga do piso -->
-  <g stroke="#4b5553" stroke-width="6">
-    <path d="M248 700L0 1080"/><path d="M480 700L340 1080"/><path d="M710 700L680 1080"/>
-    <path d="M930 700L960 1080"/><path d="M1160 700L1270 1080"/><path d="M1380 700L1580 1080"/>
-    <path d="M1610 700L1920 1080"/>
+  <title>Sala de hibernação — perspectiva 3D em pixel art</title>
+  <desc>Sala de bunker vista em perspectiva, com cápsulas de hibernação deitadas sobre o piso. A cápsula aberta está no chão em primeiro plano; a sirene vermelha e uma porta aberta revelam um corredor ao fundo.</desc>
+  <rect width="1920" height="1080" fill="#080c12"/>
+  <!-- Parede do fundo e paredes laterais convergindo para o ambiente -->
+  <path d="M0 0H1920V500L1500 610H330L0 500Z" fill="#1b2832"/>
+  <path d="M0 0H1920V72H0Z" fill="#34434c"/>
+  <path d="M0 72H1920V92H0Z" fill="#111a22"/>
+  <path d="M0 92H1920V112H0Z" fill="#263640"/>
+  <path d="M0 112H330V500L0 610Z" fill="#17232b"/>
+  <path d="M330 112H1590V500L1500 610H330Z" fill="#202d36"/>
+  <path d="M1590 112H1920V500L1500 610H1590Z" fill="#17232b"/>
+  <!-- Painéis da parede e vigas -->
+  <path d="M0 120H16V580H0Z M318 112H334V510H318Z M720 112H734V500H720Z M1110 112H1126V500H1110Z M1580 112H1596V510H1580Z M1904 112H1920V580H1904Z" fill="#0e171e"/>
+  <path d="M16 120H26V576H16Z M334 112H344V506H334Z M734 112H744V500H734Z M1126 112H1136V500H1126Z M1596 112H1606V506H1596Z M1894 112H1904V576H1894Z" fill="#52616a"/>
+  <path d="M26 286H318V298H26Z M344 286H720V298H344Z M744 286H1110V298H744Z M1136 286H1580V298H1136Z M1606 286H1894V298H1606Z" fill="#111a21"/>
+  <path d="M26 298H318V306H26Z M344 298H720V306H344Z M744 298H1110V306H744Z M1136 298H1580V306H1136Z M1606 298H1894V306H1606Z" fill="#3b4a52"/>
+  <path d="M26 470H318V482H26Z M344 470H720V482H344Z M744 470H1110V482H744Z M1136 470H1580V482H1136Z M1606 470H1894V482H1606Z" fill="#101920"/>
+  <path d="M26 482H318V490H26Z M344 482H720V490H344Z M744 482H1110V490H744Z M1136 482H1580V490H1136Z M1606 482H1894V490H1606Z" fill="#394950"/>
+  <!-- Tubos e luminárias no teto -->
+  <path d="M160 142H1760V162H160Z" fill="#0c141b"/>
+  <path d="M160 142H1760V150H160Z" fill="#607179"/>
+  <path d="M210 174H1710V184H210Z" fill="#455861"/>
+  <path d="M280 184H300V240H280Z M780 162H800V238H780Z M1380 162H1400V240H1380Z" fill="#2a3b43"/>
+  <path d="M390 202H590V212H390Z M870 202H1080V212H870Z M1250 202H1450V212H1250Z" fill="#527276"/>
+  <path d="M402 204H578V208H402Z M882 204H1068V208H882Z M1262 204H1438V208H1262Z" fill="#b2d8c8"/>
+  <!-- Placa de setor na parede -->
+  <path d="M72 196H298V262H72Z" fill="#0d151c"/>
+  <path d="M82 206H288V252H82Z" fill="#293941"/>
+  <path d="M96 218H274V226H96Z" fill="#93aaa5"/>
+  <path d="M96 236H180V242H96Z M190 236H262V242H190Z" fill="#d2aa4f"/>
+  <!-- Sirene vermelha ativa na parede -->
+  <path d="M1454 174H1628V296H1454Z" fill="#0c141b"/>
+  <path d="M1466 186H1616V284H1466Z" fill="#3c4b50"/>
+  <path d="M1480 200H1602V258H1480Z" fill="#671c25"/>
+  <path d="M1490 208H1592V250H1490Z" fill="#e33c3d"/>
+  <path d="M1504 198H1578V208H1504Z" fill="#ffab7b"/>
+  <path d="M1510 216H1572V242H1510Z" fill="#ff6150"/>
+  <path d="M1480 266H1602V274H1480Z" fill="#c53a39"/>
+  <path d="M1418 300H1460V310H1418Z M1628 300H1670V310H1628Z M1376 318H1454V326H1376Z M1630 318H1710V326H1630Z" fill="#63252c"/>
+  <path d="M1410 334H1460V342H1410Z M1630 334H1680V342H1630Z" fill="#3b2029"/>
+  <path d="M1474 314H1608V354H1474Z" fill="#111920"/>
+  <path d="M1486 324H1596V332H1486Z" fill="#df4a40"/>
+  <path d="M1486 340H1546V346H1486Z M1556 340H1596V346H1556Z" fill="#d2a84d"/>
+  <!-- Porta aberta para corredor: abertura no fundo à direita -->
+  <path d="M1650 230H1880V554L1540 632H1480V356Z" fill="#070b10"/>
+  <path d="M1670 248H1860V530L1558 602H1510V372Z" fill="#111a20"/>
+  <!-- Corredor em perspectiva -->
+  <path d="M1670 248H1860V306H1670Z" fill="#46565b"/>
+  <path d="M1670 306H1740L1632 400L1510 416V372Z" fill="#26363d"/>
+  <path d="M1860 306H1794L1700 400L1558 416V602L1860 530Z" fill="#202e34"/>
+  <path d="M1740 306H1794L1700 400H1632Z" fill="#3b4c50"/>
+  <path d="M1510 416L1632 400V606L1510 602Z" fill="#303d40"/>
+  <path d="M1632 400L1700 400V574L1632 606Z" fill="#1a272d"/>
+  <path d="M1700 400L1860 368V530L1700 574Z" fill="#27363b"/>
+  <path d="M1712 420H1740V536L1712 542Z M1810 400H1830V512L1810 518Z" fill="#35464a"/>
+  <path d="M1712 420H1720V536H1712Z M1810 400H1818V514H1810Z" fill="#798881"/>
+  <path d="M1660 326H1740V336H1660Z" fill="#d4b459"/>
+  <path d="M1668 330H1732V334H1668Z" fill="#f2d785"/>
+  <path d="M1660 342H1700V348H1660Z" fill="#6d9290"/>
+  <path d="M1680 436H1724V476H1680Z" fill="#0d1419"/>
+  <path d="M1688 444H1716V468H1688Z" fill="#c23c39"/>
+  <path d="M1696 440H1708V472H1696Z" fill="#f15a48"/>
+  <!-- Folha da porta aberta, em primeiro plano e angulada -->
+  <path d="M1650 230L1580 270L1462 620L1540 632Z" fill="#33454b"/>
+  <path d="M1634 254L1594 278L1490 600L1528 606Z" fill="#1b2a31"/>
+  <path d="M1580 270L1594 278L1490 600L1478 614Z" fill="#718087"/>
+  <path d="M1520 420H1534V454H1520Z" fill="#d6b24e"/>
+  <path d="M1534 428H1542V448H1534Z" fill="#f0d47a"/>
+  <path d="M1640 224H1660V236H1640Z M1460 612H1540V628H1460Z" fill="#a93b38"/>
+  <!-- Parede lateral esquerda em perspectiva -->
+  <path d="M0 0H330V500L0 610Z" fill="#17232b"/>
+  <path d="M0 92H330V110H0Z" fill="#33434a"/>
+  <path d="M0 112H316V126H0Z" fill="#0e171e"/>
+  <path d="M28 170L304 170V184L28 184Z M18 360L316 330V344L18 374Z" fill="#3b4a50"/>
+  <path d="M72 212H230V274H72Z" fill="#26373d"/>
+  <path d="M82 222H220V264H82Z" fill="#111a20"/>
+  <path d="M96 232H144V240H96Z M152 232H206V240H152Z" fill="#59d6bd"/>
+  <path d="M96 248H184V254H96Z" fill="#d1aa4f"/>
+  <!-- Piso profundo: chão ocupa a maior parte do enquadramento -->
+  <path d="M0 610L330 500H1500L1920 500V1080H0Z" fill="#2e3839"/>
+  <path d="M0 610L330 500H1500L1920 500V568L1500 578H330L0 680Z" fill="#394443"/>
+  <path d="M0 610L330 500H1500L1920 500V516L1500 516H330L0 632Z" fill="#59635c"/>
+  <path d="M0 680H1920V700H0Z" fill="#1c2629"/>
+  <!-- Juntas convergindo para o fundo; placas desenhadas para perspectiva -->
+  <g stroke="#4b5551" stroke-width="6">
+    <path d="M330 500L0 1080 M500 500L300 1080 M680 500L620 1080 M860 500L880 1080 M1040 500L1160 1080 M1220 500L1450 1080 M1400 500L1770 1080 M1500 500L1920 930"/>
   </g>
-  <g stroke="#1c2629" stroke-width="8">
-    <path d="M0 804H1920"/><path d="M0 900H1920"/><path d="M0 1000H1920"/>
+  <g stroke="#1c2528" stroke-width="8">
+    <path d="M0 744H1920 M0 824H1920 M0 914H1920 M0 1018H1920"/>
   </g>
   <g stroke="#626861" stroke-width="4">
-    <path d="M0 800H1920"/><path d="M0 896H1920"/><path d="M0 996H1920"/>
+    <path d="M0 740H1920 M0 820H1920 M0 910H1920 M0 1014H1920"/>
   </g>
-  <!-- grades de metal e parafusos no piso -->
-  <g fill="#69716a">
-    <path d="M84 760H180V768H84ZM244 858H354V866H244ZM510 780H590V788H510Z"/>
-    <path d="M1160 850H1280V858H1160ZM1500 778H1584V786H1500ZM1720 960H1840V968H1720Z"/>
+  <!-- Grelhas de drenagem e parafusos no piso -->
+  <path d="M66 780H250V806H66Z M1550 780H1770V806H1550Z M112 938H330V968H112Z M1430 920H1680V952H1430Z" fill="#202a2d"/>
+  <path d="M76 786H240V792H76Z M76 798H240V804H76Z M1560 786H1760V792H1560Z M1560 798H1760V804H1560Z" fill="#63706b"/>
+  <path d="M124 944H318V950H124Z M124 958H318V964H124Z M1442 926H1668V932H1442Z M1442 942H1668V948H1442Z" fill="#65716c"/>
+  <g fill="#a1a696">
+    <rect x="90" y="770" width="8" height="8"/><rect x="220" y="770" width="8" height="8"/>
+    <rect x="1570" y="770" width="8" height="8"/><rect x="1740" y="770" width="8" height="8"/>
+    <rect x="140" y="926" width="8" height="8"/><rect x="296" y="926" width="8" height="8"/>
   </g>
-  <g fill="#a2a795">
-    <rect x="112" y="780" width="8" height="8"/><rect x="160" y="780" width="8" height="8"/>
-    <rect x="270" y="878" width="8" height="8"/><rect x="328" y="878" width="8" height="8"/>
-    <rect x="1180" y="870" width="8" height="8"/><rect x="1250" y="870" width="8" height="8"/>
+  <!-- Cápsulas deitadas ao fundo, alinhadas sobre o chão (eixo longitudinal em perspectiva) -->
+  <!-- cápsula fechada distante -->
+  <path d="M440 536L604 516L690 584L520 610Z" fill="#10191e"/>
+  <path d="M448 526L610 508L700 576L528 602Z" fill="#57686a"/>
+  <path d="M462 530L606 514L682 572L530 594Z" fill="#28414a"/>
+  <path d="M478 536L606 522L664 568L536 586Z" fill="#78938a"/>
+  <path d="M494 540L608 528L650 564L540 578Z" fill="#9cafa0"/>
+  <path d="M514 552L604 542L634 562L544 574Z" fill="#c9cbb1"/>
+  <path d="M454 524L610 506L700 574L686 582L604 520L450 540Z" fill="#9baaa5"/>
+  <path d="M500 584L548 578L556 592L508 600Z" fill="#d2b04f"/>
+  <!-- cápsula fechada mais próxima, ainda deitada -->
+  <path d="M720 512L900 506L1030 604L826 620Z" fill="#0e171d"/>
+  <path d="M720 500L900 494L1038 592L828 610Z" fill="#586a6b"/>
+  <path d="M736 504L896 500L1016 588L832 600Z" fill="#28434b"/>
+  <path d="M752 510L894 506L998 584L836 592Z" fill="#78948a"/>
+  <path d="M768 516L892 512L978 580L840 584Z" fill="#a2b3a2"/>
+  <path d="M788 526L886 522L954 576L842 580Z" fill="#d0d0b6"/>
+  <path d="M724 498L900 492L1038 590L1024 598L894 510L728 514Z" fill="#b1bdb1"/>
+  <path d="M810 598L860 594L872 610L822 614Z" fill="#d3ae50"/>
+  <!-- Cápsula principal aberta, deitada no chão em primeiro plano -->
+  <!-- sombra de contato realça que a estrutura está no piso -->
+  <path d="M440 726L924 658L1370 892L840 1020L340 850Z" fill="#141b1d"/>
+  <path d="M430 704L920 638L1382 872L842 1004L326 830Z" fill="#596765"/>
+  <path d="M444 700L914 642L1360 868L842 986L348 824Z" fill="#87938a"/>
+  <!-- base espessa de metal, bordas facetadas em perspectiva -->
+  <path d="M348 824L842 986L842 1004L326 830Z" fill="#354449"/>
+  <path d="M842 986L1360 868L1382 872L842 1004Z" fill="#26373d"/>
+  <path d="M430 704L920 638L914 656L444 716Z" fill="#d0d0b8"/>
+  <path d="M920 638L1382 872L1360 868L914 656Z" fill="#aab7a8"/>
+  <path d="M430 704L444 716L348 824L326 830Z" fill="#667775"/>
+  <!-- cavidade interna da cápsula no plano horizontal -->
+  <path d="M478 722L908 666L1318 872L842 970L390 824Z" fill="#1b303a"/>
+  <path d="M500 728L904 678L1290 872L842 954L416 818Z" fill="#38535b"/>
+  <path d="M528 740L898 692L1254 872L842 936L448 810Z" fill="#547672"/>
+  <path d="M556 750L890 708L1216 872L842 920L480 802Z" fill="#82958a"/>
+  <!-- leito vazio e manta amassada -->
+  <path d="M610 770L878 734L1134 872L842 914L534 798Z" fill="#a9b19f"/>
+  <path d="M640 772L744 758L806 786L690 804Z" fill="#d0cfb7"/>
+  <path d="M744 758L836 746L900 778L806 790Z" fill="#bbc1ac"/>
+  <path d="M808 790L952 772L1002 800L858 824Z" fill="#6d817b"/>
+  <path d="M574 804L674 792L740 818L630 838Z" fill="#71847c"/>
+  <path d="M892 834L1040 812L1100 844L940 870Z" fill="#c4c5ac"/>
+  <path d="M662 852L790 834L850 858L714 882Z" fill="#89998b"/>
+  <path d="M1016 866L1110 850L1150 870L1050 890Z" fill="#798a82"/>
+  <!-- faixa de contenção e console na borda da cápsula -->
+  <path d="M390 824L842 954L842 970L390 824Z" fill="#202d32"/>
+  <path d="M440 824L608 872L594 886L424 836Z" fill="#d9ad4b"/>
+  <path d="M614 874L702 900L690 914L600 888Z" fill="#e34b41"/>
+  <path d="M1040 924L1246 872L1264 880L1054 936Z" fill="#26373a"/>
+  <path d="M1070 916L1142 898L1152 906L1080 926Z" fill="#d6aa4a"/>
+  <path d="M1162 892L1228 876L1238 884L1172 902Z" fill="#4bc8b1"/>
+  <!-- tampa aberta repousando ao lado da cápsula no piso, claramente separada da parede -->
+  <path d="M744 610L1100 562L1320 676L942 740Z" fill="#111a20"/>
+  <path d="M724 590L1092 540L1338 666L948 730Z" fill="#657778"/>
+  <path d="M742 590L1088 550L1310 666L950 714Z" fill="#416970"/>
+  <path d="M760 596L1084 560L1282 664L952 700Z" fill="#78a49b"/>
+  <path d="M782 602L1080 568L1254 662L954 688Z" fill="#a3c4b2"/>
+  <path d="M802 608L1076 576L1226 660L956 676Z" fill="#6d9691"/>
+  <path d="M724 590L744 610L942 740L948 730Z" fill="#aab6ab"/>
+  <path d="M1092 540L1100 562L1320 676L1338 666Z" fill="#c1c8b4"/>
+  <!-- dobradiças e atuadores entre tampa e cápsula -->
+  <path d="M920 660L940 656L960 704L942 710Z" fill="#d0b15a"/>
+  <path d="M1000 650L1020 646L1040 694L1022 700Z" fill="#a7b2a8"/>
+  <path d="M944 696L962 692L970 708L952 712Z" fill="#e0c469"/>
+  <path d="M1024 686L1042 682L1050 698L1032 702Z" fill="#e0c469"/>
+  <!-- riscos e fragmentos do vidro em pixels -->
+  <path d="M854 610L878 606L886 612L862 616Z M900 604L918 602L926 608L908 612Z M1150 604L1172 616L1166 622L1144 610Z M1202 636L1220 644L1214 650L1196 642Z" fill="#e2ead7"/>
+  <path d="M862 620L870 618L882 632L874 634Z M1180 620L1188 624L1176 640L1168 636Z" fill="#d8e6d3"/>
+  <!-- cápsula aberta: aro luminoso interno -->
+  <path d="M476 718L494 716L910 660L916 668L498 726Z" fill="#b5c5b5"/>
+  <path d="M1318 866L1334 870L842 986L842 974Z" fill="#c2c8b6"/>
+  <path d="M388 824L400 814L852 950L842 962Z" fill="#9cb0a5"/>
+  <!-- sangue estilizado no piso, fora da cápsula -->
+  <g fill="#511923">
+    <path d="M1020 756H1044V768H1020Z M1044 768H1100V780H1044Z M1100 780H1148V792H1100Z"/>
+    <path d="M1148 766H1172V780H1148Z M1172 780H1218V792H1172Z M1218 792H1242V804H1218Z"/>
+    <path d="M972 806H1008V818H972Z M1008 818H1052V830H1008Z M1052 830H1080V842H1052Z"/>
+    <path d="M1360 716H1384V728H1360Z M1384 728H1436V740H1384Z M1436 740H1472V752H1436Z"/>
+    <path d="M1450 752H1480V764H1450Z M1480 764H1518V776H1480Z"/>
+    <path d="M650 664H676V676H650Z M676 676H714V688H676Z M714 688H730V700H714Z"/>
   </g>
-  <!-- sangue estilizado em pequenos grupos de pixels no caminho da cápsula à porta -->
-  <g fill="#4e1821">
-    <path d="M884 716H908V728H884Z"/><path d="M908 728H960V740H908Z"/><path d="M960 740H1000V752H960Z"/>
-    <path d="M1000 728H1024V740H1000Z"/><path d="M1024 740H1084V752H1024Z"/>
-    <path d="M1084 752H1120V764H1084Z"/><path d="M1120 736H1144V752H1120Z"/>
-    <path d="M924 752H948V764H924Z"/><path d="M948 764H980V776H948Z"/>
-    <path d="M1012 768H1060V780H1012Z"/><path d="M1060 780H1096V792H1060Z"/>
-    <path d="M1220 760H1244V772H1220Z"/><path d="M1244 772H1292V784H1244Z"/>
-    <path d="M1292 760H1316V772H1292Z"/><path d="M1316 772H1360V784H1316Z"/>
-    <path d="M1260 788H1296V800H1260Z"/>
+  <g fill="#9b2d34">
+    <path d="M1050 772H1084V778H1050Z M1110 784H1136V790H1110Z M1180 784H1204V790H1180Z"/>
+    <path d="M994 810H1020V816H994Z M1030 822H1048V828H1030Z"/>
+    <path d="M1390 732H1422V738H1390Z M1460 756H1476V762H1460Z"/>
+    <path d="M680 680H704V686H680Z"/>
   </g>
-  <g fill="#922a31">
-    <path d="M916 730H948V738H916Z"/><path d="M972 744H992V750H972Z"/>
-    <path d="M1036 744H1068V752H1036Z"/><path d="M956 766H972V772H956Z"/>
-    <path d="M1252 774H1276V780H1252Z"/><path d="M1318 774H1342V780H1318Z"/>
+  <g fill="#c13b3d">
+    <rect x="1060" y="772" width="8" height="6"/><rect x="1190" y="784" width="8" height="6"/>
+    <rect x="1400" y="732" width="8" height="6"/><rect x="690" y="680" width="8" height="6"/>
   </g>
-  <g fill="#bd3b3d">
-    <rect x="934" y="732" width="8" height="6"/><rect x="1048" y="746" width="8" height="6"/>
-    <rect x="1260" y="776" width="8" height="6"/>
+  <!-- sombras dos volumes no chão para ancorar as cápsulas -->
+  <path d="M412 842L842 1008L1390 886L1380 914L842 1040L360 866Z" fill="#151c1d"/>
+  <path d="M704 616L924 752L1340 678L1332 698L940 768L690 630Z" fill="#171e20"/>
+  <path d="M432 618L530 626L700 610L696 626L518 644L416 632Z" fill="#171e20"/>
+  <!-- faixa de alerta no rodapé e luzes de emergência refletidas no piso -->
+  <path d="M0 600H1920V614H0Z" fill="#a23135"/>
+  <g fill="#e34b42">
+    <path d="M62 618H94V626H62Z M222 610H254V618H222Z M382 602H414V610H382Z"/>
+    <path d="M548 596H580V604H548Z M714 590H746V598H714Z M882 590H914V598H882Z"/>
+    <path d="M1050 596H1082V604H1050Z M1218 602H1250V610H1218Z M1386 610H1418V618H1386Z"/>
+    <path d="M1554 618H1586V626H1554Z M1722 626H1754V634H1722Z"/>
   </g>
-  <!-- reflexo vermelho pixelado sobre metal e piso -->
-  <path d="M780 652H1110V660H780Z" fill="#50232a"/>
-  <path d="M920 660H1160V668H920Z" fill="#3d2028"/>
-  <path d="M1410 660H1590V668H1410Z" fill="#49232a"/>
-  <path d="M1450 668H1520V676H1450Z" fill="#63272c"/>
-  <!-- sinalização de segurança e luminárias de rodapé -->
-  <path d="M0 636H1920V648H0Z" fill="#a33033"/>
-  <g fill="#e74c42">
-    <path d="M64 662H96V670H64ZM220 670H252V678H220ZM382 678H414V686H382Z"/>
-    <path d="M548 684H580V692H548ZM716 688H748V696H716ZM884 688H916V696H884Z"/>
-    <path d="M1052 684H1084V692H1052ZM1220 678H1252V686H1220ZM1388 670H1420V678H1388Z"/>
-    <path d="M1556 662H1588V670H1556ZM1724 654H1756V662H1724Z"/>
-  </g>
-  <!-- faixa de contenção no primeiro plano -->
-  <path d="M0 1032H1920V1080H0Z" fill="#171f22"/>
+  <path d="M0 1044H1920V1080H0Z" fill="#141c20"/>
   <g fill="#d0a647">
-    <path d="M36 1020H100V1032H36Z M116 1020H180V1032H116Z M196 1020H260V1032H196Z"/>
-    <path d="M276 1020H340V1032H276Z M356 1020H420V1032H356Z M436 1020H500V1032H436Z"/>
-    <path d="M1420 1020H1484V1032H1420Z M1500 1020H1564V1032H1500Z"/>
-    <path d="M1580 1020H1644V1032H1580Z M1660 1020H1724V1032H1660Z"/>
-    <path d="M1740 1020H1804V1032H1740Z M1820 1020H1884V1032H1820Z"/>
+    <path d="M34 1032H96V1044H34Z M112 1032H174V1044H112Z M190 1032H252V1044H190Z"/>
+    <path d="M268 1032H330V1044H268Z M346 1032H408V1044H346Z M424 1032H486V1044H424Z"/>
+    <path d="M1434 1032H1496V1044H1434Z M1512 1032H1574V1044H1512Z"/>
+    <path d="M1590 1032H1652V1044H1590Z M1668 1032H1730V1044H1668Z"/>
+    <path d="M1746 1032H1808V1044H1746Z M1824 1032H1886V1044H1824Z"/>
   </g>
-  <path d="M0 1072H1920V1080H0Z" fill="#536064"/>
-  <!-- pequenos sinais legíveis do ambiente -->
-  <path d="M1136 676H1280V700H1136Z" fill="#131d22"/>
-  <path d="M1148 684H1268V690H1148Z" fill="#b5a25e"/>
-  <path d="M1148 694H1200V698H1148Z" fill="#79908a"/>
+  <path d="M0 1072H1920V1080H0Z" fill="#59656a"/>
+  <!-- luzes vermelhas refletem no chão perto da porta, sem efeitos suaves -->
+  <path d="M1380 632H1460V640H1380Z M1400 644H1510V652H1400Z M1440 656H1530V664H1440Z" fill="#52252b"/>
+  <path d="M1480 650H1536V656H1480Z" fill="#8f3034"/>
+  <!-- pictograma da cápsula e identificação no metal -->
+  <path d="M470 940L516 952L516 960L470 948Z M520 954L556 964L556 972L520 962Z" fill="#d4b452"/>
+  <path d="M1300 860L1340 850L1340 858L1300 868Z" fill="#d4b452"/>
 </svg>
