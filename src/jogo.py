@@ -1,4 +1,5 @@
 import customtkinter as ctk
+from PIL import Image, ImageDraw
 
 from combate import atacar, rolar_d20, testar_fuga
 from models import Entidade
@@ -12,11 +13,14 @@ SUAVE = "#91A4B5"
 
 CLASSES = {
     "Engenheiro": {"hp": 34, "ataque": 6, "defesa": 8, "nivel": 1,
-                   "descricao": "Resistente; bônus nos testes de conserto e overclock."},
+                   "descricao": "Resistente; bônus nos testes de conserto e overclock.",
+                   "cores": ("#F4A261", "#405B70", "#42E8C4")},
     "Segurança": {"hp": 42, "ataque": 9, "defesa": 5, "nivel": 1,
-                  "descricao": "Mais vida e força para enfrentar as Anomalias."},
+                  "descricao": "Mais vida e força para enfrentar as Anomalias.",
+                  "cores": ("#D6A27A", "#8B3A45", "#E8F0F5")},
     "Cientista": {"hp": 27, "ataque": 7, "defesa": 4, "nivel": 2,
-                  "descricao": "Começa no nível 2 com suprimentos extras."},
+                  "descricao": "Começa no nível 2 com suprimentos extras.",
+                  "cores": ("#E7B98A", "#415C91", "#C5D8FF")},
 }
 
 PASSOS = [
@@ -41,6 +45,37 @@ INIMIGOS = {
 }
 
 
+def _retrato_pixelado(nome):
+    """Cria um retrato pixel art simples para cada classe, sem arquivos extras."""
+    pele, roupa, detalhe = CLASSES[nome]["cores"]
+    escala = 6
+    imagem = Image.new("RGB", (16 * escala, 16 * escala), "#101A29")
+    desenho = ImageDraw.Draw(imagem)
+
+    def bloco(x1, y1, x2, y2, cor):
+        desenho.rectangle(
+            (x1 * escala, y1 * escala, (x2 + 1) * escala - 1, (y2 + 1) * escala - 1),
+            fill=cor,
+        )
+
+    # Silhueta, cabelo/capacete, rosto e uniforme em blocos de pixels.
+    bloco(3, 2, 12, 14, "#050911")
+    bloco(5, 3, 10, 7, pele)
+    bloco(4, 2, 11, 4, detalhe if nome != "Cientista" else "#DCE8F5")
+    bloco(5, 5, 5, 5, "#18202B")
+    bloco(10, 5, 10, 5, "#18202B")
+    bloco(6, 7, 9, 7, "#A55C55")
+    bloco(4, 8, 11, 12, roupa)
+    bloco(2, 9, 3, 12, roupa)
+    bloco(12, 9, 13, 12, roupa)
+    bloco(5, 13, 6, 14, "#AAB5C4")
+    bloco(9, 13, 10, 14, "#AAB5C4")
+    bloco(7, 9, 8, 10, detalhe)
+    bloco(1, 1, 1, 1, DESTAQUE)
+    bloco(14, 3, 14, 3, DESTAQUE)
+    return imagem
+
+
 class Jogo:
     def __init__(self, container, ao_menu):
         self.container = container
@@ -51,7 +86,8 @@ class Jogo:
         self.pecas = set()
         self.inventario = {"Kit Médico": 1, "Injeção de Adrenalina": 1, "Pulso Eletromagnético": 1}
         self.ataque_extra = 0
-        self.log = "Escolha sua especialização para iniciar a miss��o."
+        self.log = "Escolha sua especialização para iniciar a missão."
+        self._retratos = []
         self._classe()
 
     def _limpar(self):
@@ -69,13 +105,45 @@ class Jogo:
         self.corpo.pack(fill="both", expand=True, padx=24, pady=12)
         self.card = card
 
-    def _botao(self, texto, comando, parent=None, **kwargs):
-        ctk.CTkButton(parent or self.corpo, text=texto, command=comando, fg_color="#203447", hover_color="#2A5360", text_color=TEXTO, height=42, **kwargs).pack(fill="x", pady=5)
+    def _botao(self, texto, comando, parent=None, pack_options=None, **kwargs):
+        # Altura padrão sem duplicar o argumento quando uma tela pede outra altura.
+        kwargs.setdefault("height", 42)
+        botao = ctk.CTkButton(
+            parent or self.corpo,
+            text=texto,
+            command=comando,
+            fg_color="#203447",
+            hover_color="#2A5360",
+            text_color=TEXTO,
+            **kwargs,
+        )
+        botao.pack(fill="x", pady=5, **(pack_options or {}))
+        return botao
 
     def _classe(self):
-        self._painel("EXILE | ESCOLHA SUA CLASSE", "O bunker está em ruínas. A estação orbital parte em 24 horas. Quem você era antes de acordar?")
+        self._painel(
+            "EXILE | ESCOLHA SUA CLASSE",
+            "O bunker está em ruínas. A estação orbital parte em 24 horas. Quem você era antes de acordar?",
+        )
+        self._retratos = []
         for nome, dados in CLASSES.items():
-            self._botao(f"{nome}  —  HP {dados['hp']} | ATQ {dados['ataque']} | DEF {dados['defesa']} | Nível {dados['nivel']}\n{dados['descricao']}", lambda n=nome: self._iniciar(n), height=64)
+            linha = ctk.CTkFrame(self.corpo, fg_color="#0C121D", corner_radius=12)
+            linha.pack(fill="x", pady=6)
+            retrato = ctk.CTkImage(
+                light_image=_retrato_pixelado(nome),
+                dark_image=_retrato_pixelado(nome),
+                size=(96, 96),
+            )
+            self._retratos.append(retrato)
+            ctk.CTkLabel(linha, text="", image=retrato).pack(side="left", padx=12, pady=8)
+            self._botao(
+                f"{nome}  —  HP {dados['hp']} | ATQ {dados['ataque']} | DEF {dados['defesa']} | Nível {dados['nivel']}\n{dados['descricao']}",
+                lambda n=nome: self._iniciar(n),
+                parent=linha,
+                pack_options={"side": "left", "expand": True},
+                height=76,
+                anchor="w",
+            )
 
     def _iniciar(self, nome):
         dados = CLASSES[nome]
@@ -107,8 +175,7 @@ class Jogo:
                 self.pecas.add("Célula de Combustível")
                 self._botao("Guardar Célula de Combustível", self._avancar)
             elif self.indice == 4:
-                self.pecas.add("Módulo de Ignição")
-                self.pecas.add("Placa de Navegação")
+                self.pecas.update(("Módulo de Ignição", "Placa de Navegação"))
                 self._botao("Guardar módulo e placa de navegação", self._avancar)
             else:
                 self._botao("Continuar", self._avancar)
@@ -164,6 +231,7 @@ class Jogo:
     def _animar_dado(self, ao_terminar):
         self.em_animacao = True
         valores = [rolar_d20() for _ in range(10)]
+
         def passo(i=0):
             if i < len(valores):
                 self.dado_label.configure(text=f"D20: {valores[i]}")
@@ -171,11 +239,13 @@ class Jogo:
             else:
                 self.em_animacao = False
                 ao_terminar(valores[-1])
+
         passo()
 
     def _atacar(self):
         if self.em_animacao:
             return
+
         def resolver(dado):
             self.heroi.ataque += self.ataque_extra
             resultado = atacar(self.heroi, self.inimigo, dado)
@@ -189,6 +259,7 @@ class Jogo:
                 self._combate_vitoria()
                 return
             self._turno_inimigo()
+
         self._animar_dado(resolver)
 
     def _texto_ataque(self, resultado, atacante, defensor):
@@ -218,6 +289,7 @@ class Jogo:
     def _fugir(self):
         if self.em_animacao:
             return
+
         def resolver(dado):
             self.dado_label.configure(text=f"Fuga — D20: {dado}")
             if dado >= 11:
@@ -230,6 +302,7 @@ class Jogo:
             else:
                 self.log = f"Você tirou {dado}; a fuga falha!"
                 self._turno_inimigo()
+
         self._animar_dado(resolver)
 
     def _menu_itens(self):
