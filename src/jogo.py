@@ -1,5 +1,7 @@
+import random
+import tkinter as tk
+
 import customtkinter as ctk
-from PIL import Image, ImageDraw
 
 from combate import atacar, rolar_d20, testar_fuga
 from models import Entidade
@@ -12,332 +14,335 @@ TEXTO = "#E8F0F5"
 SUAVE = "#91A4B5"
 
 CLASSES = {
-    "Engenheiro": {"hp": 34, "ataque": 6, "defesa": 8, "nivel": 1,
-                   "descricao": "Resistente; bônus nos testes de conserto e overclock.",
-                   "cores": ("#F4A261", "#405B70", "#42E8C4")},
-    "Segurança": {"hp": 42, "ataque": 9, "defesa": 5, "nivel": 1,
-                  "descricao": "Mais vida e força para enfrentar as Anomalias.",
-                  "cores": ("#D6A27A", "#8B3A45", "#E8F0F5")},
-    "Cientista": {"hp": 27, "ataque": 7, "defesa": 4, "nivel": 2,
-                  "descricao": "Começa no nível 2 com suprimentos extras.",
-                  "cores": ("#E7B98A", "#415C91", "#C5D8FF")},
+    "Engenheiro": {
+        "hp": 34,
+        "ataque": 6,
+        "defesa": 8,
+        "nivel": 1,
+        "descricao": "Resistente; vive no improviso e domina o bunker.",
+        "pele": "#E7C39B",
+        "roupa": "#5C7D7A",
+        "acessorio": "#42E8C4",
+    },
+    "Segurança": {
+        "hp": 42,
+        "ataque": 9,
+        "defesa": 5,
+        "nivel": 1,
+        "descricao": "Mau em negociação, ótimo em sobreviver ao caos.",
+        "pele": "#D4A07B",
+        "roupa": "#7B2E2E",
+        "acessorio": "#D9B36B",
+    },
+    "Cientista": {
+        "hp": 27,
+        "ataque": 7,
+        "defesa": 4,
+        "nivel": 2,
+        "descricao": "Resolve problemas com lógica, não com força bruta.",
+        "pele": "#EAC7A6",
+        "roupa": "#47649B",
+        "acessorio": "#B9D7FF",
+    },
 }
-
-PASSOS = [
-    ("Ala médica", "As cápsulas foram abertas à força. Um terminal ainda pisca perto dos leitos.", None),
-    ("Corredor de manutenção", "Cabos expostos iluminam um rastro escuro. Algo se move dentro das paredes.", "Parasita Sombrio"),
-    ("Depósito de combustível", "Entre caixas tombadas, você encontra uma Célula de Combustível intacta.", None),
-    ("Laboratório", "O Mutante Rastejante protege o módulo de ignição. O alarme dispara quando você entra.", "Mutante Rastejante"),
-    ("Centro de navegação", "Você recupera a Placa de Navegação e baixa a gravação final da equipe.", None),
-    ("Hangar subterrâneo", "A Aberração do Hangar bloqueia o mini-foguete. As três peças estão prontas para instalação.", "Aberração do Hangar"),
-    ("Órbita terrestre", "O foguete acopla à estação. A nave de evacuação está destruída; a I.A. anuncia contenção biológica.", "Drone de Patrulha"),
-    ("Setor de segurança", "Torretas acordam no corredor. Atrás delas fica o acesso ao Núcleo Central.", "Torreta Laser"),
-    ("Núcleo Central", "A I.A. fecha as portas. Não existe negociação: o Núcleo precisa ser desligado.", "Núcleo da I.A."),
-]
-
-INIMIGOS = {
-    "Parasita Sombrio": (20, 6, 2, 1),
-    "Mutante Rastejante": (25, 7, 3, 1),
-    "Aberração do Hangar": (38, 9, 5, 2),
-    "Drone de Patrulha": (25, 7, 3, 2),
-    "Torreta Laser": (31, 8, 4, 2),
-    "Núcleo da I.A.": (55, 10, 6, 3),
-}
-
-
-def _retrato_pixelado(nome):
-    """Cria um retrato pixel art simples para cada classe, sem arquivos extras."""
-    pele, roupa, detalhe = CLASSES[nome]["cores"]
-    escala = 6
-    imagem = Image.new("RGB", (16 * escala, 16 * escala), "#101A29")
-    desenho = ImageDraw.Draw(imagem)
-
-    def bloco(x1, y1, x2, y2, cor):
-        desenho.rectangle(
-            (x1 * escala, y1 * escala, (x2 + 1) * escala - 1, (y2 + 1) * escala - 1),
-            fill=cor,
-        )
-
-    # Silhueta, cabelo/capacete, rosto e uniforme em blocos de pixels.
-    bloco(3, 2, 12, 14, "#050911")
-    bloco(5, 3, 10, 7, pele)
-    bloco(4, 2, 11, 4, detalhe if nome != "Cientista" else "#DCE8F5")
-    bloco(5, 5, 5, 5, "#18202B")
-    bloco(10, 5, 10, 5, "#18202B")
-    bloco(6, 7, 9, 7, "#A55C55")
-    bloco(4, 8, 11, 12, roupa)
-    bloco(2, 9, 3, 12, roupa)
-    bloco(12, 9, 13, 12, roupa)
-    bloco(5, 13, 6, 14, "#AAB5C4")
-    bloco(9, 13, 10, 14, "#AAB5C4")
-    bloco(7, 9, 8, 10, detalhe)
-    bloco(1, 1, 1, 1, DESTAQUE)
-    bloco(14, 3, 14, 3, DESTAQUE)
-    return imagem
 
 
 class Jogo:
     def __init__(self, container, ao_menu):
         self.container = container
         self.ao_menu = ao_menu
-        self.indice = 0
-        self.inimigo = None
-        self.em_animacao = False
+        self.container.configure(fg_color=FUNDO)
+        self.jogador = None
+        self.inventario = {"Kit Médico": 1, "Adrenalina": 1, "EMP": 1}
         self.pecas = set()
-        self.inventario = {"Kit Médico": 1, "Injeção de Adrenalina": 1, "Pulso Eletromagnético": 1}
         self.ataque_extra = 0
-        self.log = "Escolha sua especialização para iniciar a missão."
-        self._retratos = []
-        self._classe()
+        self.log = "Você entrou no bunker. A missão começa agora."
+        self.mapa = None
+        self.paredes = []
+        self.interagiveis = []
+        self.interacao_atual = None
+        self._estado = "selecao"
+
+        self._setup_tela_selecao()
 
     def _limpar(self):
         for widget in self.container.winfo_children():
             widget.destroy()
         self.container.configure(fg_color=FUNDO)
 
-    def _painel(self, titulo, texto):
+    def _desenhar_pessoa(self, canvas, x, y, nome, cor_pele, cor_roupa, cor_acessorio, sexo="m"):
+        px = x
+        py = y
+        # corpo e proporções mais realistas
+        torso_h = 18
+        head_r = 10
+        canvas.create_oval(px - head_r, py - 30, px + head_r, py - 10, fill=cor_pele, outline="#1B1F2A")
+        canvas.create_rectangle(px - 10, py - 10, px + 10, py + torso_h, fill=cor_roupa, outline="#1B1F2A")
+        canvas.create_line(px, py + torso_h, px - 9, py + 35, fill="#1B1F2A", width=3)
+        canvas.create_line(px, py + torso_h, px + 9, py + 35, fill="#1B1F2A", width=3)
+        canvas.create_line(px - 8, py + 7, px - 16, py + 18, fill="#1B1F2A", width=3)
+        canvas.create_line(px + 8, py + 7, px + 16, py + 18, fill="#1B1F2A", width=3)
+        canvas.create_oval(px - 3, py - 25, px - 1, py - 23, fill="#0B0D12")
+        canvas.create_oval(px + 1, py - 25, px + 3, py - 23, fill="#0B0D12")
+        if sexo == "m":
+            canvas.create_line(px - 2, py - 20, px + 2, py - 20, fill="#1D1D1D", width=2)
+        canvas.create_rectangle(px - 5, py - 12, px + 5, py - 4, fill=cor_acessorio, outline="")
+        if nome:
+            canvas.create_text(px, py + 42, text=nome, fill=TEXTO, font=("Consolas", 8, "bold"))
+
+    def _setup_tela_selecao(self):
         self._limpar()
-        card = ctk.CTkFrame(self.container, fg_color=PAINEL, corner_radius=18)
-        card.pack(fill="both", expand=True, padx=36, pady=30)
-        ctk.CTkLabel(card, text=titulo, font=("Consolas", 30, "bold"), text_color=DESTAQUE).pack(anchor="w", padx=28, pady=(24, 8))
-        ctk.CTkLabel(card, text=texto, font=("Consolas", 15), text_color=TEXTO, justify="left", wraplength=950).pack(anchor="w", padx=28, pady=(0, 16))
-        self.corpo = ctk.CTkFrame(card, fg_color="transparent")
-        self.corpo.pack(fill="both", expand=True, padx=24, pady=12)
-        self.card = card
+        painel = ctk.CTkFrame(self.container, fg_color=PAINEL, corner_radius=24)
+        painel.pack(fill="both", expand=True, padx=40, pady=26)
 
-    def _botao(self, texto, comando, parent=None, pack_options=None, **kwargs):
-        # Altura padrão sem duplicar o argumento quando uma tela pede outra altura.
-        kwargs.setdefault("height", 42)
-        botao = ctk.CTkButton(
-            parent or self.corpo,
-            text=texto,
-            command=comando,
-            fg_color="#203447",
-            hover_color="#2A5360",
-            text_color=TEXTO,
-            **kwargs,
+        titulo = ctk.CTkLabel(
+            painel,
+            text="EXILE — ESCOLHA A CLASSE",
+            font=("Consolas", 28, "bold"),
+            text_color=DESTAQUE,
         )
-        botao.pack(fill="x", pady=5, **(pack_options or {}))
-        return botao
+        titulo.pack(pady=(20, 10))
 
-    def _classe(self):
-        self._painel(
-            "EXILE | ESCOLHA SUA CLASSE",
-            "O bunker está em ruínas. A estação orbital parte em 24 horas. Quem você era antes de acordar?",
-        )
-        self._retratos = []
+        nome_frame = ctk.CTkFrame(painel, fg_color="#0A1220", corner_radius=16)
+        nome_frame.pack(fill="x", padx=24, pady=(10, 16))
+        ctk.CTkLabel(nome_frame, text="Nome do sobrevivente", text_color=SUAVE, font=("Consolas", 12, "bold")).pack(anchor="w", padx=18, pady=(14, 6))
+        self.entry_nome = ctk.CTkEntry(nome_frame, placeholder_text="Digite seu nome", width=300, height=38, border_color=DESTAQUE)
+        self.entry_nome.pack(padx=18, pady=(0, 14), fill="x")
+
         for nome, dados in CLASSES.items():
-            linha = ctk.CTkFrame(self.corpo, fg_color="#0C121D", corner_radius=12)
-            linha.pack(fill="x", pady=6)
-            retrato = ctk.CTkImage(
-                light_image=_retrato_pixelado(nome),
-                dark_image=_retrato_pixelado(nome),
-                size=(96, 96),
+            card = ctk.CTkFrame(painel, fg_color="#0E1622", corner_radius=18)
+            card.pack(fill="x", padx=20, pady=8)
+            linha = ctk.CTkFrame(card, fg_color="transparent")
+            linha.pack(fill="x", padx=10, pady=10)
+
+            # miniatura do personagem
+            mini = tk.Canvas(linha, width=72, height=72, bg="#0E1622", highlightthickness=0)
+            mini.pack(side="left", padx=(6, 14))
+            self._desenhar_pessoa(mini, 36, 36, "", dados["pele"], dados["roupa"], dados["acessorio"], sexo="m")
+
+            texto = (
+                f"{nome}\n"
+                f"HP {dados['hp']} | ATQ {dados['ataque']} | DEF {dados['defesa']} | NÍVEL {dados['nivel']}\n"
+                f"{dados['descricao']}"
             )
-            self._retratos.append(retrato)
-            ctk.CTkLabel(linha, text="", image=retrato).pack(side="left", padx=12, pady=8)
-            self._botao(
-                f"{nome}  —  HP {dados['hp']} | ATQ {dados['ataque']} | DEF {dados['defesa']} | Nível {dados['nivel']}\n{dados['descricao']}",
-                lambda n=nome: self._iniciar(n),
-                parent=linha,
-                pack_options={"side": "left", "expand": True},
-                height=76,
-                anchor="w",
+            label = ctk.CTkLabel(linha, text=texto, justify="left", text_color=TEXTO, font=("Consolas", 13), anchor="w")
+            label.pack(side="left", fill="x", expand=True)
+
+            btn = ctk.CTkButton(
+                card,
+                text="SELECIONAR",
+                command=lambda n=nome: self._iniciar_jogo(n),
+                fg_color=DESTAQUE,
+                hover_color="#2BC5A5",
+                text_color="#050C14",
+                font=("Consolas", 13, "bold"),
+                height=36,
             )
+            btn.pack(fill="x", padx=12, pady=(0, 12))
 
-    def _iniciar(self, nome):
-        dados = CLASSES[nome]
-        if nome == "Cientista":
-            self.inventario["Kit Médico"] += 1
-            self.inventario["Pulso Eletromagnético"] += 1
-        self.heroi = Entidade(nome, dados["hp"], dados["ataque"], dados["defesa"], dados["nivel"])
-        self._historia("PRÓLOGO — O DESPERTAR", "A cápsula de hibernação abre com um estalo. Luzes vermelhas piscam no bunker vazio. No terminal, uma gravação explica: as Anomalias tomaram a superfície e a nave de evacuação partirá da estação orbital em 24 horas. Você precisa alcançar o hangar e consertar o mini-foguete.", "Começar exploração", self._explorar)
+    def _iniciar_jogo(self, nome_classe):
+        nome = self.entry_nome.get().strip() or "Vance"
+        dados = CLASSES[nome_classe]
+        self.jogador = Entidade(nome, dados["hp"], dados["ataque"], dados["defesa"], dados["nivel"])
+        self.classe_atual = nome_classe
+        self.jogador_nome = nome
+        self._estado = "mundo"
+        self._iniciar_mapa()
 
-    def _historia(self, titulo, texto, rotulo, comando):
-        self._painel(titulo, texto)
-        self._botao(rotulo, comando)
+    def _iniciar_mapa(self):
+        self._limpar()
 
-    def _explorar(self):
-        if self.indice >= len(PASSOS):
-            self._final()
-            return
-        titulo, texto, inimigo = PASSOS[self.indice]
-        self._painel(f"ATO {'1' if self.indice < 6 else '2'} — {titulo.upper()}", texto)
-        self._status(self.corpo)
-        if inimigo:
-            hp, ataque, defesa, nivel = INIMIGOS[inimigo]
-            self.inimigo = Entidade(inimigo, hp, ataque, defesa, nivel)
-            self._botao("Enfrentar ameaça", self._combate)
-        else:
-            if self.indice == 0:
-                self._botao("Hackear terminal (D20; Engenheiro ganha +2)", self._hackear)
-            elif self.indice == 2:
-                self.pecas.add("Célula de Combustível")
-                self._botao("Guardar Célula de Combustível", self._avancar)
-            elif self.indice == 4:
-                self.pecas.update(("Módulo de Ignição", "Placa de Navegação"))
-                self._botao("Guardar módulo e placa de navegação", self._avancar)
+        self.topo = ctk.CTkFrame(self.container, fg_color="#101B2C")
+        self.topo.pack(fill="x", pady=(12, 0), padx=12)
+
+        ctk.CTkLabel(self.topo, text=f"{self.jogador.nome} — {self.classe_atual}", font=("Consolas", 19, "bold"), text_color=DESTAQUE).pack(side="left", padx=16, pady=10)
+        self.hp_label = ctk.CTkLabel(self.topo, text="HP: 0/0", font=("Consolas", 12, "bold"), text_color="#FDE2D2")
+        self.hp_label.pack(side="left", padx=20)
+
+        self.canvas = tk.Canvas(self.container, width=1040, height=650, bg="#11171D", highlightthickness=0)
+        self.canvas.pack(fill="both", expand=True, padx=14, pady=12)
+
+        self.canvas.bind("<KeyPress>", self._on_key)
+        self.canvas.focus_set()
+
+        self.player_x = 200
+        self.player_y = 260
+        self.movimento = 24
+        self.parede = []
+        self._montar_mapa()
+        self._desenhar_jogador()
+        self._desenhar_npcs()
+        self._desenhar_hud()
+        self._atualizar_hud()
+
+        self.canvas.bind("<space>", self._interagir)
+        self.container.bind("<KeyPress>", self._on_key)
+
+    def _montar_mapa(self):
+        self.canvas.delete("all")
+        self.canvas.create_rectangle(0, 0, 1040, 650, fill="#1B232E", outline="")
+
+        # piso e paredes do bunker
+        self.canvas.create_rectangle(40, 40, 1000, 610, fill="#202A38", outline="#2F3F51", width=2)
+        self.canvas.create_rectangle(80, 80, 960, 570, fill="#0E1822", outline="#2A3D4B", width=2)
+
+        # corredores e divisórias
+        for rect in [
+            (180, 70, 210, 520),
+            (430, 110, 470, 560),
+            (700, 80, 740, 530),
+            (820, 180, 920, 220),
+        ]:
+            self.canvas.create_rectangle(*rect, fill="#28384A", outline="#344D67", width=2)
+            self.parede.append(rect)
+
+        # elementos de cenário
+        self.canvas.create_rectangle(100, 120, 160, 180, fill="#7A9AA9", outline="#B8D1E0")
+        self.canvas.create_rectangle(500, 300, 620, 420, fill="#8C6A4E", outline="#DAB286")
+        self.canvas.create_rectangle(840, 400, 930, 510, fill="#3A586F", outline="#8FBCD6")
+
+        # pontos de interação
+        self.interagiveis = [
+            {"id": "terminal", "nome": "Terminal", "x": 118, "y": 150, "tipo": "dialogo", "texto": "A gravação final da equipe está no terminal. Eles avisavam que a estação orbital estava infectada."},
+            {"id": "escada", "nome": "Escada", "x": 845, "y": 190, "tipo": "teste", "texto": "A escada leva ao patamar superior. Se conseguir escalar, pode seguir para a superfície."},
+            {"id": "gerador", "nome": "Gerador", "x": 560, "y": 365, "tipo": "item", "texto": "Você encontra um módulo de energia improvisado."},
+            {"id": "npc1", "nome": "Técnica Nara", "x": 245, "y": 250, "tipo": "npc", "texto": "Nara: 'A ponte de evacuação foi destruída. O resto do bunker já foi abandonado.'"},
+            {"id": "npc2", "nome": "Soldado Rog", "x": 780, "y": 460, "tipo": "npc", "texto": "Rog: 'Fique atento às sombras. Elas imitam vozes. Não confie em nada que se mexe.'"},
+        ]
+
+        for item in self.interagiveis:
+            if item["tipo"] == "teste":
+                self.canvas.create_rectangle(item["x"] - 20, item["y"] - 20, item["x"] + 20, item["y"] + 20, fill="#6FE7BE", outline="#3AA885")
+            elif item["tipo"] == "item":
+                self.canvas.create_oval(item["x"] - 15, item["y"] - 15, item["x"] + 15, item["y"] + 15, fill="#B5A7FF", outline="#D6CEFF")
             else:
-                self._botao("Continuar", self._avancar)
-            self._botao("Procurar suprimentos", self._buscar)
+                self.canvas.create_oval(item["x"] - 12, item["y"] - 12, item["x"] + 12, item["y"] + 12, fill="#F9D98A", outline="#E7B554")
 
-    def _status(self, parent):
-        pecas = ", ".join(sorted(self.pecas)) or "nenhuma"
-        itens = " | ".join(f"{k}: {v}" for k, v in self.inventario.items() if v)
-        ctk.CTkLabel(parent, text=f"{self.heroi.nome}  HP {self.heroi.hp}/{CLASSES[self.heroi.nome]['hp']}  |  Nível {self.heroi.nivel}  |  Peças: {pecas}\nInventário: {itens or 'vazio'}", text_color=SUAVE, justify="left", wraplength=900).pack(anchor="w", pady=8)
+        self.canvas.create_text(520, 30, text="BUNKER — Exile", fill=DESTAQUE, font=("Consolas", 18, "bold"))
+        self.canvas.create_text(520, 610, text="Move com WASD/Setas. Interaja com E ou espaço.", fill=SUAVE, font=("Consolas", 11))
 
-    def _avancar(self):
-        if self.indice == 5:
-            faltam = {"Célula de Combustível", "Módulo de Ignição", "Placa de Navegação"} - self.pecas
-            if faltam:
-                self.log = "Ainda faltam componentes: " + ", ".join(sorted(faltam))
-                self._explorar()
+    def _desenhar_jogador(self):
+        self.player = self.canvas.create_oval(self.player_x - 12, self.player_y - 12, self.player_x + 12, self.player_y + 12, fill="#7CE0BF", outline="#E8FFF5")
+        self._desenhar_pessoa(self.canvas, self.player_x, self.player_y, self.jogador.nome, CLASSES[self.classe_atual]["pele"], CLASSES[self.classe_atual]["roupa"], CLASSES[self.classe_atual]["acessorio"], sex="m")
+
+    def _desenhar_npcs(self):
+        for npc in self.interagiveis:
+            if npc["tipo"] == "npc":
+                self._desenhar_pessoa(self.canvas, npc["x"], npc["y"], npc["nome"].split()[0], "#E8C5A6", "#607D99", "#93D7D0")
+
+    def _desenhar_hud(self):
+        self.d20_var = tk.StringVar(value="D20: —")
+        self.d20_label = tk.Label(self.container, textvariable=self.d20_var, fg=DESTAQUE, bg=FUNDO, font=("Consolas", 18, "bold"))
+        self.d20_label.place(x=18, y=70)
+
+        self.dialogo_var = tk.StringVar(value="")
+        self.dialogo = tk.Label(self.container, textvariable=self.dialogo_var, fg=TEXTO, bg=FUNDO, justify="left", wraplength=480, font=("Consolas", 11))
+        self.dialogo.place(x=18, y=100)
+
+    def _atualizar_hud(self):
+        self.hp_label.configure(text=f"HP: {self.jogador.hp}/{CLASSES[self.classe_atual]['hp']}")
+
+    def _posicao_valida(self, x, y):
+        if x < 60 or y < 60 or x > 980 or y > 590:
+            return False
+        for rx1, ry1, rx2, ry2 in self.parede:
+            if rx1 <= x <= rx2 and ry1 <= y <= ry2:
+                return False
+        return True
+
+    def _on_key(self, event):
+        if self._estado != "mundo":
+            return
+        dx = 0
+        dy = 0
+        keys = {"w": (0, -self.movimento), "W": (0, -self.movimento), "Up": (0, -self.movimento), "a": (-self.movimento, 0), "A": (-self.movimento, 0), "Left": (-self.movimento, 0), "s": (0, self.movimento), "S": (0, self.movimento), "Down": (0, self.movimento), "d": (self.movimento, 0), "D": (self.movimento, 0), "Right": (self.movimento, 0)}
+        if event.keysym in keys:
+            dx, dy = keys[event.keysym]
+        nx = self.player_x + dx
+        ny = self.player_y + dy
+        if self._posicao_valida(nx, ny):
+            self.player_x = nx
+            self.player_y = ny
+            self.canvas.coords(self.player, self.player_x - 12, self.player_y - 12, self.player_x + 12, self.player_y + 12)
+            self._redesenhar_pessoa_jogador()
+            self._verificar_interacao()
+
+    def _redesenhar_pessoa_jogador(self):
+        for item in self.canvas.find_all():
+            if self.canvas.type(item) == "oval" and self.canvas.coords(item)[:2] == [self.player_x - 12, self.player_y - 12]:
+                pass
+        self.canvas.delete("jogador")
+        self._desenhar_pessoa(self.canvas, self.player_x, self.player_y, self.jogador.nome, CLASSES[self.classe_atual]["pele"], CLASSES[self.classe_atual]["roupa"], CLASSES[self.classe_atual]["acessorio"], sexo="m")
+        self.canvas.gettags(self.canvas.find_all()[-1])
+
+    def _verificar_interacao(self):
+        self.interacao_atual = None
+        for item in self.interagiveis:
+            dist = ((self.player_x - item["x"]) ** 2 + (self.player_y - item["y"]) ** 2) ** 0.5
+            if dist < 42:
+                self.interacao_atual = item
+                self.dialogo_var.set(f"Pressione E ou espaço para interagir com {item['nome']}")
                 return
-        self.indice += 1
-        if self.indice == 6:
-            self._historia("LANÇAMENTO", "Com as peças instaladas, o mini-foguete rompe a atmosfera. A Terra desaparece sob nuvens de poeira.", "Acoplar à estação", self._explorar)
-        else:
-            self._explorar()
+        self.dialogo_var.set("")
 
-    def _buscar(self):
-        self.inventario["Kit Médico"] = self.inventario.get("Kit Médico", 0) + 1
-        self.log = "Você encontrou um Kit Médico."
-        self._explorar()
+    def _interagir(self, event=None):
+        if self.interacao_atual is None:
+            return
+        item = self.interacao_atual
+        if item["tipo"] == "dialogo":
+            self.dialogo_var.set(item["texto"])
+            return
+        if item["tipo"] == "npc":
+            self.dialogo_var.set(item["texto"])
+            return
+        if item["tipo"] == "item":
+            self.dialogo_var.set("Você encontrou um módulo de energia para o mini-foguete.")
+            self.pecas.add("Módulo de Energia")
+            self.interagiveis.remove(item)
+            self._montar_mapa()
+            self._desenhar_jogador()
+            self._desenhar_npcs()
+            self._desenhar_hud()
+            self._atualizar_hud()
+            return
+        if item["tipo"] == "teste":
+            self._teste_escada()
 
-    def _hackear(self):
-        valor = rolar_d20()
-        bonus = 2 if self.heroi.nome == "Engenheiro" else 0
-        texto = f"Terminal: D20 {valor}" + (f" + bônus de classe {bonus}" if bonus else "")
-        if valor + bonus >= 11:
-            self.inventario["Pulso Eletromagnético"] += 1
-            texto += ". Acesso concedido; você recupera um Pulso Eletromagnético."
-        else:
-            texto += ". A tentativa falha, mas o sistema não dispara o alarme."
-        self._historia("TESTE DE HACK", texto, "Seguir", self._avancar)
+    def _teste_escada(self):
+        self.dialogo_var.set("Você tenta subir a escada. Rolagem do D20 em andamento...")
+        self._animar_dado(lambda valor: self._resolver_escada(valor))
 
-    def _combate(self):
-        self._painel(f"COMBATE — {self.inimigo.nome.upper()}", "Você age primeiro. Itens podem ser usados sem consumir sua ação; escolha atacar ou tentar fugir.")
-        self._status(self.corpo)
-        ctk.CTkLabel(self.corpo, text=f"{self.inimigo.nome}: HP {self.inimigo.hp}/{INIMIGOS[self.inimigo.nome][0]}", text_color="#F29E8E").pack(anchor="w", pady=6)
-        self.dado_label = ctk.CTkLabel(self.corpo, text="D20: —", font=("Consolas", 24, "bold"), text_color=DESTAQUE)
-        self.dado_label.pack(pady=8)
-        if self.log:
-            ctk.CTkLabel(self.corpo, text=self.log, text_color=SUAVE, wraplength=900).pack(anchor="w", pady=4)
-        self._botao("Atacar", self._atacar)
-        self._botao("Usar item", self._menu_itens)
-        if self.inimigo.nome != "Núcleo da I.A.":
-            self._botao("Fugir (sucesso com 11+)", self._fugir)
-
-    def _animar_dado(self, ao_terminar):
-        self.em_animacao = True
-        valores = [rolar_d20() for _ in range(10)]
+    def _animar_dado(self, depois):
+        valores = [random.randint(1, 20) for _ in range(12)]
 
         def passo(i=0):
             if i < len(valores):
-                self.dado_label.configure(text=f"D20: {valores[i]}")
-                self.container.after(65, lambda: passo(i + 1))
-            else:
-                self.em_animacao = False
-                ao_terminar(valores[-1])
+                self.d20_var.set(f"D20: {valores[i]}")
+                self.container.after(60, lambda: passo(i + 1))
+                return
+            self.d20_var.set(f"D20: {valores[-1]}")
+            depois(valores[-1])
 
         passo()
 
-    def _atacar(self):
-        if self.em_animacao:
-            return
-
-        def resolver(dado):
-            self.heroi.ataque += self.ataque_extra
-            resultado = atacar(self.heroi, self.inimigo, dado)
-            self.heroi.ataque -= self.ataque_extra
-            self.log = self._texto_ataque(resultado, "Você", self.inimigo.nome)
-            if not self.inimigo.viva:
-                self.log += f"\n{self.inimigo.nome} foi derrotado!"
-                if self.inimigo.nome == "Núcleo da I.A.":
-                    self._final()
-                    return
-                self._combate_vitoria()
-                return
-            self._turno_inimigo()
-
-        self._animar_dado(resolver)
-
-    def _texto_ataque(self, resultado, atacante, defensor):
-        if resultado.falha_critica:
-            return f"{atacante} tirou 1: falha crítica! O ataque erra."
-        detalhe = " Acerto crítico! Dano dobrado." if resultado.critico else ""
-        return f"{atacante} tirou {resultado.dado} e causou {resultado.dano} de dano a {defensor}.{detalhe}"
-
-    def _turno_inimigo(self):
-        resultado = atacar(self.inimigo, self.heroi)
-        self.log += "\n" + self._texto_ataque(resultado, self.inimigo.nome, "você")
-        if not self.heroi.viva:
-            self._fim("FIM DE JOGO", "Seus sinais vitais cessam no silêncio. A estação continua à deriva.")
+    def _resolver_escada(self, valor):
+        bonus = 2 if self.classe_atual == "Engenheiro" else 0
+        total = valor + bonus
+        if total >= 12:
+            self.dialogo_var.set(f"Sucesso! Você escalou com segurança. D20 {valor} + bônus {bonus} = {total}.")
+            self.pecas.add("Plataforma da estação")
+            self.jogador.hp = min(CLASSES[self.classe_atual]["hp"], self.jogador.hp + 6)
         else:
-            self._combate()
+            dano = max(3, 10 - self.jogador.defesa)
+            self.jogador.hp = max(0, self.jogador.hp - dano)
+            self.dialogo_var.set(f"Falhou. Você escorrega, perde {dano} de vida e cai de volta. D20 {valor} + bônus {bonus} = {total}.")
+        self._atualizar_hud()
 
-    def _combate_vitoria(self):
-        nome = self.inimigo.nome
-        if nome == "Aberração do Hangar":
-            self._historia("HANGAR CONQUISTADO", "A criatura cai. Você instala as três peças no mini-foguete e inicia a sequência de lançamento.", "Lançar", self._avancar)
-        elif nome == "Núcleo da I.A.":
-            self._final()
-        else:
-            self.indice += 1
-            self._historia("AMEAÇA ELIMINADA", self.log + "\nO caminho está livre.", "Continuar", self._explorar)
 
-    def _fugir(self):
-        if self.em_animacao:
-            return
-
-        def resolver(dado):
-            self.dado_label.configure(text=f"Fuga — D20: {dado}")
-            if dado >= 11:
-                self.log = f"Você tirou {dado} e escapou. A ameaça fica para trás."
-                if self.inimigo.nome == "Aberração do Hangar":
-                    self._historia("FUGA DO HANGAR", self.log + " Você não conseguiu lançar o foguete sem derrotar o guardião; tente novamente.", "Voltar ao combate", self._combate)
-                else:
-                    self.indice += 1
-                    self._historia("FUGA", self.log, "Seguir", self._explorar)
-            else:
-                self.log = f"Você tirou {dado}; a fuga falha!"
-                self._turno_inimigo()
-
-        self._animar_dado(resolver)
-
-    def _menu_itens(self):
-        self._painel("INVENTÁRIO", "Itens são usados sem gastar a ação do turno. Escolha um item disponível.")
-        for nome, quantidade in self.inventario.items():
-            if quantidade:
-                self._botao(f"{nome} × {quantidade}", lambda n=nome: self._usar_item(n))
-        self._botao("Voltar ao combate", self._combate)
-
-    def _usar_item(self, nome):
-        if nome == "Kit Médico":
-            self.inventario[nome] -= 1
-            cura = min(18, CLASSES[self.heroi.nome]["hp"] - self.heroi.hp)
-            self.heroi.hp += cura
-            self.log = f"Kit Médico usado: +{cura} HP."
-        elif nome == "Injeção de Adrenalina":
-            self.inventario[nome] -= 1
-            self.ataque_extra = 3
-            self.log = "Adrenalina ativa: +3 de ataque até o fim do próximo combate."
-        else:
-            self.inventario[nome] -= 1
-            dano = 18 if "Drone" in self.inimigo.nome or "Torreta" in self.inimigo.nome or "I.A." in self.inimigo.nome else 9
-            self.inimigo.hp = max(0, self.inimigo.hp - dano)
-            self.log = f"Pulso EMP causa {dano} de dano."
-            if not self.inimigo.viva:
-                self._combate_vitoria()
-                return
-        self._combate()
-
-    def _final(self):
-        self._painel("EPÍLOGO — UMA ÚLTIMA ESCOLHA", "O Núcleo da I.A. foi derrotado. Uma nave reserva aguarda no hangar. Escolha como garantir que a inteligência corrompida não volte.")
-        self._botao("Final 1 — Overclock do Sistema", lambda: self._fim("FINAL: OVERCLOCK", "Você sobrecarrega os circuitos sem danificar a estação. Com os sistemas de navegação sob seu controle, parte em segurança rumo a um novo planeta."))
-        self._botao("Final 2 — Detonação do Reator", lambda: self._fim("FINAL: DETONAÇÃO", "O reator entra em reação em cadeia. Você escapa na cápsula no último segundo, enquanto a estação desaparece numa explosão silenciosa."))
-
-    def _fim(self, titulo, texto):
-        self._painel(titulo, texto)
-        self._botao("Jogar novamente", self._classe)
-        self._botao("Voltar ao menu", self.ao_menu)
+if __name__ == "__main__":
+    root = ctk.CTk()
+    root.geometry("1100x720")
+    container = ctk.CTkFrame(root, fg_color=FUNDO)
+    container.pack(fill="both", expand=True)
+    Jogo(container, ao_menu=lambda: None)
+    root.mainloop()
