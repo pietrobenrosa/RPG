@@ -1,17 +1,208 @@
+from pathlib import Path
+
 import customtkinter as ctk
+from PIL import Image, ImageSequence
+
+
+COR_FUNDO = "#090D16"
+COR_PAINEL = "#111A27"
+COR_DESTAQUE = "#42E8C4"
+COR_TEXTO = "#E8F0F5"
+COR_SECUNDARIA = "#91A4B5"
+NOME_GIF = "portal-sharts-game-asset.gif"
+
+
+def _localizar_gif():
+    """Procura a arte na raiz do projeto ou nas pastas comuns de assets."""
+    pasta_src = Path(__file__).resolve().parent
+    raiz = pasta_src.parent
+    for caminho in (
+        raiz / NOME_GIF,
+        pasta_src / NOME_GIF,
+        raiz / "assets" / NOME_GIF,
+        raiz / "dados" / NOME_GIF,
+    ):
+        if caminho.is_file():
+            return caminho
+    return None
+
+
+def _mostrar_como_jogar(container):
+    janela = ctk.CTkToplevel(container.winfo_toplevel())
+    janela.title("Como jogar — Exile")
+    janela.geometry("520x390")
+    janela.resizable(False, False)
+    janela.configure(fg_color=COR_FUNDO)
+    janela.transient(container.winfo_toplevel())
+    janela.grab_set()
+
+    ctk.CTkLabel(
+        janela,
+        text="COMO JOGAR",
+        font=("Consolas", 24, "bold"),
+        text_color=COR_DESTAQUE,
+    ).pack(anchor="w", padx=32, pady=(30, 18))
+
+    instrucoes = (
+        "Acorde no bunker e descubra o que aconteceu com a Terra.\n\n"
+        "• Explore os ambientes e reúna peças para consertar o mini-foguete.\n"
+        "• Nos combates, escolha entre atacar, usar um item ou fugir.\n"
+        "• Os testes e ataques usam um dado D20 — boa sorte nas rolagens!\n"
+        "• Chegue à estação orbital e encontre uma forma de escapar.\n\n"
+        "Sua jornada começa sozinha. Suas escolhas decidem como ela termina."
+    )
+    ctk.CTkLabel(
+        janela,
+        text=instrucoes,
+        font=("Consolas", 14),
+        text_color=COR_TEXTO,
+        justify="left",
+        wraplength=450,
+    ).pack(anchor="w", padx=32, pady=4)
+
+    ctk.CTkButton(
+        janela,
+        text="ENTENDI",
+        font=("Consolas", 14, "bold"),
+        fg_color=COR_DESTAQUE,
+        hover_color="#2BC5A5",
+        text_color=COR_FUNDO,
+        height=42,
+        command=janela.destroy,
+    ).pack(fill="x", padx=32, pady=(22, 28))
+
 
 def mostrar_menu(container, ao_iniciar):
     for widget in container.winfo_children():
         widget.destroy()
 
-    ctk.CTkLabel(container, text="Exile", font=("Consolas", 36, "bold"), text_color="#00FFCC").pack(pady=(80, 10))
+    container.configure(fg_color=COR_FUNDO)
 
-    entry_nome = ctk.CTkEntry(container, placeholder_text="Nome do sobrevivente...", font=("Consolas", 14), width=280, height=40, justify="center")
-    entry_nome.pack(pady=20)
+    cartao = ctk.CTkFrame(container, fg_color=COR_PAINEL, corner_radius=22)
+    cartao.pack(fill="both", expand=True, padx=44, pady=36)
+    cartao.grid_columnconfigure(0, weight=6, uniform="menu")
+    cartao.grid_columnconfigure(1, weight=5, uniform="menu")
+    cartao.grid_rowconfigure(0, weight=1)
 
-    def clicar_jogar():
-        nome = entry_nome.get().strip() or "Vance"
-        ao_iniciar(nome)
+    # Área da arte: o GIF é opcional para que o menu continue abrindo
+    # mesmo quando o arquivo ainda não foi colocado no projeto.
+    area_arte = ctk.CTkFrame(cartao, fg_color="#0C121D", corner_radius=18)
+    area_arte.grid(row=0, column=0, sticky="nsew", padx=(14, 8), pady=14)
+n    caminho_gif = _localizar_gif()
+    if caminho_gif:
+        try:
+            with Image.open(caminho_gif) as gif:
+                quadros = [
+                    quadro.convert("RGBA").copy()
+                    for quadro in ImageSequence.Iterator(gif)
+                ]
+                duracao = max(40, gif.info.get("duration", 100))
 
-    ctk.CTkButton(container, text="▶ INICIAR JOGO", font=("Consolas", 16, "bold"), fg_color="#00AA88", width=280, height=45, command=clicar_jogar).pack(pady=10)
-    ctk.CTkButton(container, text="✖ SAIR", font=("Consolas", 14), fg_color="#AA3333", width=280, height=40, command=container.winfo_toplevel().quit).pack(pady=10)
+            largura = max(320, min(680, area_arte.winfo_screenwidth() // 2))
+            altura = max(280, min(620, area_arte.winfo_screenheight() - 180))
+            tamanho = (largura, altura)
+            quadros = [
+                quadro.resize(tamanho, Image.Resampling.LANCZOS)
+                for quadro in quadros
+            ]
+            imagem_gif = ctk.CTkLabel(area_arte, text="")
+            imagem_gif.pack(fill="both", expand=True, padx=10, pady=10)
+            imagens_ctk = [
+                ctk.CTkImage(light_image=quadro, dark_image=quadro, size=tamanho)
+                for quadro in quadros
+            ]
+            imagem_gif.configure(image=imagens_ctk[0])
+            imagem_gif._imagens_gif = imagens_ctk
+
+            def animar(indice=0):
+                if not imagem_gif.winfo_exists():
+                    return
+                imagem_gif.configure(image=imagens_ctk[indice])
+                imagem_gif.after(duracao, animar, (indice + 1) % len(imagens_ctk))
+
+            if len(imagens_ctk) > 1:
+                imagem_gif.after(duracao, animar, 1 % len(imagens_ctk))
+        except (OSError, ValueError):
+            _mostrar_fallback_arte(area_arte)
+    else:
+        _mostrar_fallback_arte(area_arte)
+
+    painel_menu = ctk.CTkFrame(cartao, fg_color="transparent")
+    painel_menu.grid(row=0, column=1, sticky="nsew", padx=(24, 42), pady=36)
+    painel_menu.grid_columnconfigure(0, weight=1)
+    painel_menu.grid_rowconfigure(0, weight=1)
+    conteudo = ctk.CTkFrame(painel_menu, fg_color="transparent")
+    conteudo.grid(row=1, column=0, sticky="ew")
+    conteudo.grid_columnconfigure(0, weight=1)
+
+    ctk.CTkLabel(
+        conteudo,
+        text="EXILE",
+        font=("Consolas", 54, "bold"),
+        text_color=COR_DESTAQUE,
+    ).grid(row=0, column=0, sticky="w")
+    ctk.CTkLabel(
+        conteudo,
+        text="A ÚLTIMA CHANCE DA HUMANIDADE",
+        font=("Consolas", 12, "bold"),
+        text_color=COR_SECUNDARIA,
+    ).grid(row=1, column=0, sticky="w", pady=(2, 20))
+    ctk.CTkLabel(
+        conteudo,
+        text="O bunker está em ruínas.\nA contagem regressiva já começou.",
+        font=("Consolas", 16),
+        text_color=COR_TEXTO,
+        justify="left",
+    ).grid(row=2, column=0, sticky="w", pady=(0, 30))
+
+    ctk.CTkButton(
+        conteudo,
+        text="▶   COMEÇAR JOGO",
+        font=("Consolas", 16, "bold"),
+        fg_color=COR_DESTAQUE,
+        hover_color="#2BC5A5",
+        text_color=COR_FUNDO,
+        height=54,
+        corner_radius=10,
+        command=lambda: ao_iniciar("Vance"),
+    ).grid(row=3, column=0, sticky="ew", pady=(0, 12))
+    ctk.CTkButton(
+        conteudo,
+        text="?   COMO JOGAR",
+        font=("Consolas", 15, "bold"),
+        fg_color="#202D3B",
+        hover_color="#2A3B4D",
+        text_color=COR_TEXTO,
+        height=48,
+        corner_radius=10,
+        command=lambda: _mostrar_como_jogar(container),
+    ).grid(row=4, column=0, sticky="ew", pady=(0, 12))
+    ctk.CTkButton(
+        conteudo,
+        text="SAIR",
+        font=("Consolas", 14),
+        fg_color="transparent",
+        hover_color="#26313C",
+        text_color=COR_SECUNDARIA,
+        height=42,
+        corner_radius=10,
+        command=container.winfo_toplevel().quit,
+    ).grid(row=5, column=0, sticky="ew")
+
+    ctk.CTkLabel(
+        painel_menu,
+        text="SOBREVIVA. ESCAPE. RECOMECE.",
+        font=("Consolas", 10, "bold"),
+        text_color="#526577",
+    ).grid(row=2, column=0, sticky="sw", pady=(24, 0))
+
+
+def _mostrar_fallback_arte(area_arte):
+    ctk.CTkLabel(
+        area_arte,
+        text="✦\n\nPORTAL DE EVACUAÇÃO\n\nColoque o arquivo\n"
+        f"{NOME_GIF}\nna pasta do projeto para exibir a animação.",
+        font=("Consolas", 16, "bold"),
+        text_color=COR_DESTAQUE,
+        justify="center",
+    ).pack(fill="both", expand=True, padx=24, pady=24)
