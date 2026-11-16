@@ -1,19 +1,23 @@
 import customtkinter as ctk
+
 from tela_menu import mostrar_menu
+from jogo import Jogo
+
 
 ctk.set_appearance_mode("dark")
+ctk.set_default_color_theme("blue")
 
 janela = ctk.CTk()
-janela.title("Exile")
-janela.geometry("900x600")
-janela.resizable(False, False)
-janela.after(0, lambda: janela.state("zoomed")) 
-
-container = ctk.CTkFrame(janela, fg_color="#121218")
+janela.title("Exile — A Última Chance da Humanidade")
+janela.geometry("1100x720")
+janela.minsize(900, 600)
+container = ctk.CTkFrame(janela, fg_color="#090D16")
 container.pack(fill="both", expand=True)
 
-def comecar_aventura(nome_jogador):
-    print(f"O jogo começou para: {nome_jogador}")
+
+def comecar_aventura(_nome_jogador="Vance"):
+    Jogo(container, ao_menu=lambda: mostrar_menu(container, comecar_aventura))
+
 
 mostrar_menu(container, comecar_aventura)
 janela.mainloop()
