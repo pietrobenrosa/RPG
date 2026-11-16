@@ -11,8 +11,10 @@ janela = ctk.CTk()
 janela.title("Exile — A Última Chance da Humanidade")
 janela.geometry("1100x720")
 janela.minsize(900, 600)
+janela.after(0, lambda: janela.state("zoomed"))
 container = ctk.CTkFrame(janela, fg_color="#090D16")
 container.pack(fill="both", expand=True)
+
 
 
 def comecar_aventura(_nome_jogador="Vance"):
