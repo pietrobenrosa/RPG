@@ -9,17 +9,18 @@ COR_PAINEL = "#111A27"
 COR_DESTAQUE = "#42E8C4"
 COR_TEXTO = "#E8F0F5"
 COR_SECUNDARIA = "#91A4B5"
-NOME_GIF = "portal-sharts-game-asset.gif"
+NOME_GIF = "portal-shard-game-asset.gif"
 
 
 def _localizar_gif():
-    """Procura a arte na raiz do projeto ou nas pastas comuns de assets."""
+    """Procura a arte nas pastas comuns de assets do projeto."""
     pasta_src = Path(__file__).resolve().parent
     raiz = pasta_src.parent
     for caminho in (
         raiz / NOME_GIF,
         pasta_src / NOME_GIF,
         raiz / "assets" / NOME_GIF,
+        raiz / "assets" / "cenarios" / NOME_GIF,
         raiz / "dados" / NOME_GIF,
     ):
         if caminho.is_file():
@@ -84,16 +85,11 @@ def mostrar_menu(container, ao_iniciar):
     cartao.grid_columnconfigure(1, weight=5, uniform="menu")
     cartao.grid_rowconfigure(0, weight=1)
 
-    # Área da arte: o GIF é opcional para que o menu continue abrindo
-    # mesmo quando o arquivo ainda não foi colocado no projeto.
+    # O GIF é opcional para que o menu continue abrindo sem o arquivo.
     area_arte = ctk.CTkFrame(cartao, fg_color="#0C121D", corner_radius=18)
     area_arte.grid(row=0, column=0, sticky="nsew", padx=(14, 8), pady=14)
 
     caminho_gif = _localizar_gif()
-    caminho_gif = _localizar_gif()
-
-    caminho_gif = _localizar_gif()
-
     if caminho_gif:
         try:
             with Image.open(caminho_gif) as gif:
@@ -103,13 +99,29 @@ def mostrar_menu(container, ao_iniciar):
                 ]
                 duracao = max(40, gif.info.get("duration", 100))
 
-            largura = max(320, min(680, area_arte.winfo_screenwidth() // 2))
-            altura = max(280, min(620, area_arte.winfo_screenheight() - 180))
-            tamanho = (largura, altura)
+            # O GIF original tem 48x48: amplie mantendo a proporção quadrada.
+            tamanho_maximo = max(
+                48,
+                min(
+                    480,
+                    area_arte.winfo_screenwidth() // 2,
+                    area_arte.winfo_screenheight() - 180,
+                ),
+            )
+            tamanho_original = quadros[0].size
+            escala = min(
+                tamanho_maximo / tamanho_original[0],
+                tamanho_maximo / tamanho_original[1],
+            )
+            tamanho = (
+                max(1, round(tamanho_original[0] * escala)),
+                max(1, round(tamanho_original[1] * escala)),
+            )
             quadros = [
-                quadro.resize(tamanho, Image.Resampling.LANCZOS)
+                quadro.resize(tamanho, Image.Resampling.NEAREST)
                 for quadro in quadros
             ]
+
             imagem_gif = ctk.CTkLabel(area_arte, text="")
             imagem_gif.pack(fill="both", expand=True, padx=10, pady=10)
             imagens_ctk = [
