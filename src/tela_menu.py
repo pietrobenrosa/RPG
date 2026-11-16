@@ -88,8 +88,12 @@ def mostrar_menu(container, ao_iniciar):
     # mesmo quando o arquivo ainda não foi colocado no projeto.
     area_arte = ctk.CTkFrame(cartao, fg_color="#0C121D", corner_radius=18)
     area_arte.grid(row=0, column=0, sticky="nsew", padx=(14, 8), pady=14)
+
     caminho_gif = _localizar_gif()
     caminho_gif = _localizar_gif()
+
+    caminho_gif = _localizar_gif()
+
     if caminho_gif:
         try:
             with Image.open(caminho_gif) as gif:
