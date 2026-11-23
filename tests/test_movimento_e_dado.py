@@ -60,6 +60,11 @@ class TestMovimentoESalas(unittest.TestCase):
         self.assertTrue(jogo._posicao_valida(480, 410))
         self.assertTrue(jogo._posicao_valida(480, 246))
         self.assertFalse(jogo._posicao_valida(480, 245))
+        self.assertFalse(jogo._posicao_valida(389, 246))
+        self.assertTrue(jogo._posicao_valida(390, 246))
+        self.assertTrue(jogo._posicao_valida(574, 250))
+        self.assertFalse(jogo._posicao_valida(575, 250))
+        self.assertTrue(jogo._posicao_valida(670, 450))
 
     def test_personagem_fica_duas_vezes_maior_no_corredor(self):
         self.assertEqual(TAMANHO_PERSONAGEM["corredor"], 2 * TAMANHO_PERSONAGEM["sala_hibernacao"])
@@ -115,8 +120,8 @@ class TestMovimentoESalas(unittest.TestCase):
         posicoes = {
             1: (305, 450),
             2: (385, 332),
-            3: (590, 250),
-            4: (690, 450),
+            3: (574, 250),
+            4: (670, 450),
         }
         jogo = Jogo.__new__(Jogo)
         jogo.sala_atual = "corredor"
@@ -154,7 +159,7 @@ class TestMovimentoESalas(unittest.TestCase):
         jogo = Jogo.__new__(Jogo)
         jogo._estado = "mundo"
         jogo.sala_atual = "corredor"
-        jogo.player_x, jogo.player_y = (590, 250)
+        jogo.player_x, jogo.player_y = (574, 250)
         jogo.porta3_aberta = False
         jogo.inventario = {"Chave Dourada": 1}
         jogo._remover_opcoes_porta3 = Mock()
@@ -169,7 +174,7 @@ class TestMovimentoESalas(unittest.TestCase):
         jogo = Jogo.__new__(Jogo)
         jogo._estado = "mundo"
         jogo.sala_atual = "corredor"
-        jogo.player_x, jogo.player_y = (590, 250)
+        jogo.player_x, jogo.player_y = (574, 250)
         jogo.porta3_tentativa_usada = False
         jogo.teclas_pressionadas = set()
         jogo.animador_d20 = Mock(rolando=False)
