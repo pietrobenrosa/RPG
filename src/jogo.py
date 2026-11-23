@@ -1,9 +1,12 @@
-import random
+import math
+from pathlib import Path
 import tkinter as tk
 
 import customtkinter as ctk
+from PIL import Image, ImageTk
 
-from combate import atacar, rolar_d20, testar_fuga
+from audio import AudioPassos
+from dice_anim import AnimadorD20
 from models import Entidade
 
 
@@ -46,6 +49,112 @@ CLASSES = {
     },
 }
 
+LARGURA_MUNDO = 960
+ALTURA_MUNDO = 540
+VELOCIDADE_JOGADOR = 3.9
+SPAWN_INICIAL = (235, 410)
+TAMANHO_PERSONAGEM = {
+    "sala_hibernacao": 128,
+    "corredor": 256,
+}
+RAIO_JOGADOR = {
+    "sala_hibernacao": 18,
+    "corredor": 36,
+}
+
+IMAGENS_SALAS = {
+    "sala_hibernacao": Path(__file__).resolve().parents[1] / "assets" / "cenarios" / "Sala_Hibernação.png",
+    "corredor": Path(__file__).resolve().parents[1] / "assets" / "cenarios" / "Corredor.png",
+}
+AUDIO_PASSOS = Path(__file__).resolve().parents[1] / "assets" / "audios" / "passos.mp3"
+
+# Coordenadas (x, y, largura, altura) no mundo virtual de 960x540.
+# Para bloquear uma área, ajuste ou acrescente retângulos nestas listas.
+COLISOES = {
+    "sala_hibernacao": [
+        (0, 210, 625, 22),
+        (770, 210, 190, 22),
+        (38, 215, 100, 165),
+        (185, 215, 105, 165),
+        (350, 215, 105, 165),
+        (510, 215, 100, 165),
+    ],
+    "corredor": [
+        (385, 0, 190, 210),
+        (0, 210, 334, 85),
+        (626, 210, 334, 85),
+        (0, 295, 284, 85),
+        (676, 295, 284, 85),
+        (0, 380, 234, 160),
+        (726, 380, 234, 160),
+    ],
+}
+
+# Cada retângulo de passagem leva o jogador para uma sala e posição de entrada.
+# Para criar outra saída, copie um item e ajuste a área, o destino e o spawn.
+ZONAS_TELEPORTE = {
+    "sala_hibernacao": [
+        {
+            "retangulo": (620, 185, 155, 60),
+            "destino": "corredor",
+            "spawn": (480, 430),
+        },
+    ],
+    "corredor": [
+        {
+            "retangulo": (380, 470, 200, 70),
+            "destino": "sala_hibernacao",
+            "spawn": (700, 260),
+        },
+    ],
+}
+
+PORTAS_CORREDOR = [
+    {"numero": 1, "retangulo": (265, 400, 80, 100)},
+    {"numero": 2, "retangulo": (350, 285, 70, 95)},
+    {"numero": 3, "retangulo": (550, 210, 80, 70)},
+    {"numero": 4, "retangulo": (650, 400, 80, 100)},
+]
+
+LIMITES_SALAS = {
+    "sala_hibernacao": (20, 25, 940, 520),
+    "corredor": (20, 25, 940, 520),
+}
+
+SPRITES_JOGADOR = {
+    "baixo": (
+        "Personagem_frente_parado.png",
+        "Personagem_frente_perna_levantada_1.png",
+        "Personagem_frente_perna_levantada_2.png",
+    ),
+    "cima": (
+        "Personagem_costas_parado.png",
+        "Personagem_costas_perna_direita_levantada.png",
+        "Personagem_costas_perna_esquerda_levantada.png",
+    ),
+    "direita": (
+        "personagem_olhando_direita_parado.png",
+        "Personagem_olhando_direita_perna_levantada_1.png",
+        "Personagem_olhando_direita_perna_levantada_2.png",
+    ),
+    "esquerda": (
+        "Personagem_olhando_esquerda.png",
+        "Personagem_olhando_esquerda_perna_levantada_1.png",
+        "Personagem_olhando_esquerda_pernas_no_chao.png",
+    ),
+}
+
+TECLAS_MOVIMENTO = {
+    "w": ("cima", 0, -1),
+    "up": ("cima", 0, -1),
+    "s": ("baixo", 0, 1),
+    "down": ("baixo", 0, 1),
+    "a": ("esquerda", -1, 0),
+    "left": ("esquerda", -1, 0),
+    "d": ("direita", 1, 0),
+    "right": ("direita", 1, 0),
+}
+
 
 class Jogo:
     def __init__(self, container, ao_menu):
@@ -57,10 +166,6 @@ class Jogo:
         self.pecas = set()
         self.ataque_extra = 0
         self.log = "Você entrou no bunker. A missão começa agora."
-        self.mapa = None
-        self.paredes = []
-        self.interagiveis = []
-        self.interacao_atual = None
         self._estado = "selecao"
 
         self._setup_tela_selecao()
@@ -155,188 +260,287 @@ class Jogo:
         self.topo = ctk.CTkFrame(self.container, fg_color="#101B2C")
         self.topo.pack(fill="x", pady=(12, 0), padx=12)
 
-        ctk.CTkLabel(self.topo, text=f"{self.jogador.nome} — {self.classe_atual}", font=("Consolas", 19, "bold"), text_color=DESTAQUE).pack(side="left", padx=16, pady=10)
+        self.nome_sala_label = ctk.CTkLabel(
+            self.topo,
+            text=f"{self.jogador.nome} — {self.classe_atual}",
+            font=("Consolas", 19, "bold"),
+            text_color=DESTAQUE,
+        )
+        self.nome_sala_label.pack(side="left", padx=16, pady=10)
         self.hp_label = ctk.CTkLabel(self.topo, text="HP: 0/0", font=("Consolas", 12, "bold"), text_color="#FDE2D2")
         self.hp_label.pack(side="left", padx=20)
 
-        self.canvas = tk.Canvas(self.container, width=1040, height=650, bg="#11171D", highlightthickness=0)
-        self.canvas.pack(fill="both", expand=True, padx=14, pady=12)
+        self.sala_atual = "sala_hibernacao"
+        self.player_x, self.player_y = SPAWN_INICIAL
+        self.direcao = "cima"
+        self.teclas_pressionadas = set()
+        self._quadro_animacao = 0
+        self._tempo_animacao = 0
+        self._ultimo_tamanho = None
+        self._fundo_canvas = None
+        self._imagem_fundo = None
+        self._porta_ocupada = None
+        self.tela_porta = None
+        self.audio_passos = AudioPassos(AUDIO_PASSOS)
+        self._imagens_fundo = {
+            sala: Image.open(caminho).convert("RGBA")
+            for sala, caminho in IMAGENS_SALAS.items()
+        }
+        pasta_sprites = Path(__file__).resolve().parents[1] / "assets" / "personagem"
+        self._sprites_originais = {
+            direcao: tuple(
+                Image.open(pasta_sprites / arquivo).convert("RGBA")
+                for arquivo in arquivos
+            )
+            for direcao, arquivos in SPRITES_JOGADOR.items()
+        }
+        self._sprites_redimensionados = {}
 
+        self.canvas = tk.Canvas(self.container, width=1040, height=585, bg="#11171D", highlightthickness=0)
+        self.canvas.pack(fill="both", expand=True, padx=14, pady=12)
+        self.canvas.bind("<Configure>", self._redimensionar_cena)
         self.canvas.bind("<KeyPress>", self._on_key)
+        self.canvas.bind("<KeyRelease>", self._on_key_release)
         self.canvas.focus_set()
 
-        self.player_x = 200
-        self.player_y = 260
-        self.movimento = 24
-        self.parede = []
-        self._montar_mapa()
-        self._desenhar_jogador()
-        self._desenhar_npcs()
         self._desenhar_hud()
         self._atualizar_hud()
 
-        self.canvas.bind("<space>", self._interagir)
-        self.container.bind("<KeyPress>", self._on_key)
-
-    def _montar_mapa(self):
-        self.canvas.delete("all")
-        self.canvas.create_rectangle(0, 0, 1040, 650, fill="#1B232E", outline="")
-
-        # piso e paredes do bunker
-        self.canvas.create_rectangle(40, 40, 1000, 610, fill="#202A38", outline="#2F3F51", width=2)
-        self.canvas.create_rectangle(80, 80, 960, 570, fill="#0E1822", outline="#2A3D4B", width=2)
-
-        # corredores e divisórias
-        for rect in [
-            (180, 70, 210, 520),
-            (430, 110, 470, 560),
-            (700, 80, 740, 530),
-            (820, 180, 920, 220),
-        ]:
-            self.canvas.create_rectangle(*rect, fill="#28384A", outline="#344D67", width=2)
-            self.parede.append(rect)
-
-        # elementos de cenário
-        self.canvas.create_rectangle(100, 120, 160, 180, fill="#7A9AA9", outline="#B8D1E0")
-        self.canvas.create_rectangle(500, 300, 620, 420, fill="#8C6A4E", outline="#DAB286")
-        self.canvas.create_rectangle(840, 400, 930, 510, fill="#3A586F", outline="#8FBCD6")
-
-        # pontos de interação
-        self.interagiveis = [
-            {"id": "terminal", "nome": "Terminal", "x": 118, "y": 150, "tipo": "dialogo", "texto": "A gravação final da equipe está no terminal. Eles avisavam que a estação orbital estava infectada."},
-            {"id": "escada", "nome": "Escada", "x": 845, "y": 190, "tipo": "teste", "texto": "A escada leva ao patamar superior. Se conseguir escalar, pode seguir para a superfície."},
-            {"id": "gerador", "nome": "Gerador", "x": 560, "y": 365, "tipo": "item", "texto": "Você encontra um módulo de energia improvisado."},
-            {"id": "npc1", "nome": "Técnica Nara", "x": 245, "y": 250, "tipo": "npc", "texto": "Nara: 'A ponte de evacuação foi destruída. O resto do bunker já foi abandonado.'"},
-            {"id": "npc2", "nome": "Soldado Rog", "x": 780, "y": 460, "tipo": "npc", "texto": "Rog: 'Fique atento às sombras. Elas imitam vozes. Não confie em nada que se mexe.'"},
-        ]
-
-        for item in self.interagiveis:
-            if item["tipo"] == "teste":
-                self.canvas.create_rectangle(item["x"] - 20, item["y"] - 20, item["x"] + 20, item["y"] + 20, fill="#6FE7BE", outline="#3AA885")
-            elif item["tipo"] == "item":
-                self.canvas.create_oval(item["x"] - 15, item["y"] - 15, item["x"] + 15, item["y"] + 15, fill="#B5A7FF", outline="#D6CEFF")
-            else:
-                self.canvas.create_oval(item["x"] - 12, item["y"] - 12, item["x"] + 12, item["y"] + 12, fill="#F9D98A", outline="#E7B554")
-
-        self.canvas.create_text(520, 30, text="BUNKER — Exile", fill=DESTAQUE, font=("Consolas", 18, "bold"))
-        self.canvas.create_text(520, 610, text="Move com WASD/Setas. Interaja com E ou espaço.", fill=SUAVE, font=("Consolas", 11))
-
-    def _desenhar_jogador(self):
-        self.player = self.canvas.create_oval(self.player_x - 12, self.player_y - 12, self.player_x + 12, self.player_y + 12, fill="#7CE0BF", outline="#E8FFF5")
-        self._desenhar_pessoa(self.canvas, self.player_x, self.player_y, self.jogador.nome, CLASSES[self.classe_atual]["pele"], CLASSES[self.classe_atual]["roupa"], CLASSES[self.classe_atual]["acessorio"], sex="m")
-
-    def _desenhar_npcs(self):
-        for npc in self.interagiveis:
-            if npc["tipo"] == "npc":
-                self._desenhar_pessoa(self.canvas, npc["x"], npc["y"], npc["nome"].split()[0], "#E8C5A6", "#607D99", "#93D7D0")
-
     def _desenhar_hud(self):
-        self.d20_var = tk.StringVar(value="D20: —")
-        self.d20_label = tk.Label(self.container, textvariable=self.d20_var, fg=DESTAQUE, bg=FUNDO, font=("Consolas", 18, "bold"))
-        self.d20_label.place(x=18, y=70)
+        self.d20_label = tk.Label(
+            self.container,
+            text="D20: —",
+            fg=DESTAQUE,
+            bg=FUNDO,
+            font=("Consolas", 12, "bold"),
+            compound="top",
+        )
+        self.d20_label.place(relx=0.98, rely=0.97, anchor="se")
+        self.animador_d20 = AnimadorD20(self.d20_label)
 
         self.dialogo_var = tk.StringVar(value="")
-        self.dialogo = tk.Label(self.container, textvariable=self.dialogo_var, fg=TEXTO, bg=FUNDO, justify="left", wraplength=480, font=("Consolas", 11))
-        self.dialogo.place(x=18, y=100)
+        self.dialogo = tk.Label(
+            self.container,
+            textvariable=self.dialogo_var,
+            fg=TEXTO,
+            bg=FUNDO,
+            justify="left",
+            wraplength=480,
+            font=("Consolas", 11),
+        )
+        self.dialogo.place(relx=0.02, rely=0.97, anchor="sw")
+        self._atualizar_nome_sala()
+        self.container.after(20, self._atualizar_movimento)
 
     def _atualizar_hud(self):
         self.hp_label.configure(text=f"HP: {self.jogador.hp}/{CLASSES[self.classe_atual]['hp']}")
 
+    def _atualizar_nome_sala(self):
+        nome = "SALA DE HIBERNAÇÃO" if self.sala_atual == "sala_hibernacao" else "CORREDOR"
+        self.nome_sala_label.configure(text=f"{self.jogador.nome} — {self.classe_atual}  |  {nome}")
+
+    def _redimensionar_cena(self, event=None):
+        largura = event.width if event is not None else self.canvas.winfo_width()
+        altura = event.height if event is not None else self.canvas.winfo_height()
+        if largura <= 1 or altura <= 1:
+            return
+        tamanho = (largura, altura)
+        if tamanho == self._ultimo_tamanho:
+            return
+        self._ultimo_tamanho = tamanho
+        escala_x = largura / LARGURA_MUNDO
+        escala_y = altura / ALTURA_MUNDO
+
+        fundo = self._imagens_fundo[self.sala_atual].resize(
+            tamanho,
+            Image.Resampling.LANCZOS,
+        )
+        self._imagem_fundo = ImageTk.PhotoImage(fundo)
+        if self._fundo_canvas is None:
+            self._fundo_canvas = self.canvas.create_image(0, 0, anchor="nw", image=self._imagem_fundo)
+            self.player = self.canvas.create_image(0, 0, anchor="s")
+        else:
+            self.canvas.itemconfigure(self._fundo_canvas, image=self._imagem_fundo)
+        self.canvas.tag_lower(self._fundo_canvas)
+
+        tamanho_sprite = (
+            max(1, round(TAMANHO_PERSONAGEM[self.sala_atual] * escala_x)),
+            max(1, round(TAMANHO_PERSONAGEM[self.sala_atual] * escala_y)),
+        )
+        self._sprites_redimensionados = {
+            direcao: tuple(
+                ImageTk.PhotoImage(sprite.resize(tamanho_sprite, Image.Resampling.NEAREST))
+                for sprite in quadros
+            )
+            for direcao, quadros in self._sprites_originais.items()
+        }
+        self._desenhar_jogador()
+
+    def _desenhar_jogador(self):
+        if not self._sprites_redimensionados:
+            return
+        escala_x = self.canvas.winfo_width() / LARGURA_MUNDO
+        escala_y = self.canvas.winfo_height() / ALTURA_MUNDO
+        indice = self._quadro_animacao + 1 if self.teclas_pressionadas else 0
+        imagem = self._sprites_redimensionados[self.direcao][indice]
+        self.canvas.coords(self.player, self.player_x * escala_x, self.player_y * escala_y)
+        self.canvas.itemconfigure(self.player, image=imagem)
+        self._imagem_jogador = imagem
+
     def _posicao_valida(self, x, y):
-        if x < 60 or y < 60 or x > 980 or y > 590:
+        raio = RAIO_JOGADOR[self.sala_atual]
+        esquerda, topo, direita, base = LIMITES_SALAS[self.sala_atual]
+        if (
+            x - raio < esquerda
+            or y - raio < topo
+            or x + raio > direita
+            or y + raio > base
+        ):
             return False
-        for rx1, ry1, rx2, ry2 in self.parede:
-            if rx1 <= x <= rx2 and ry1 <= y <= ry2:
+        for rx, ry, largura, altura in COLISOES[self.sala_atual]:
+            if (
+                x + raio > rx
+                and x - raio < rx + largura
+                and y + raio > ry
+                and y - raio < ry + altura
+            ):
                 return False
         return True
 
     def _on_key(self, event):
         if self._estado != "mundo":
             return
+        tecla = event.keysym.lower()
+        if tecla in TECLAS_MOVIMENTO:
+            self.teclas_pressionadas.add(tecla)
+        elif tecla == "r":
+            self._rolar_teste()
+
+    def _on_key_release(self, event):
+        self.teclas_pressionadas.discard(event.keysym.lower())
+
+    def _atualizar_movimento(self):
+        if self._estado == "porta":
+            self.container.after(20, self._atualizar_movimento)
+            return
+        if self._estado != "mundo":
+            return
         dx = 0
         dy = 0
-        keys = {"w": (0, -self.movimento), "W": (0, -self.movimento), "Up": (0, -self.movimento), "a": (-self.movimento, 0), "A": (-self.movimento, 0), "Left": (-self.movimento, 0), "s": (0, self.movimento), "S": (0, self.movimento), "Down": (0, self.movimento), "d": (self.movimento, 0), "D": (self.movimento, 0), "Right": (self.movimento, 0)}
-        if event.keysym in keys:
-            dx, dy = keys[event.keysym]
-        nx = self.player_x + dx
-        ny = self.player_y + dy
-        if self._posicao_valida(nx, ny):
-            self.player_x = nx
-            self.player_y = ny
-            self.canvas.coords(self.player, self.player_x - 12, self.player_y - 12, self.player_x + 12, self.player_y + 12)
-            self._redesenhar_pessoa_jogador()
-            self._verificar_interacao()
+        for tecla in self.teclas_pressionadas:
+            if tecla in TECLAS_MOVIMENTO:
+                _, movimento_x, movimento_y = TECLAS_MOVIMENTO[tecla]
+                dx += movimento_x
+                dy += movimento_y
 
-    def _redesenhar_pessoa_jogador(self):
-        for item in self.canvas.find_all():
-            if self.canvas.type(item) == "oval" and self.canvas.coords(item)[:2] == [self.player_x - 12, self.player_y - 12]:
-                pass
-        self.canvas.delete("jogador")
-        self._desenhar_pessoa(self.canvas, self.player_x, self.player_y, self.jogador.nome, CLASSES[self.classe_atual]["pele"], CLASSES[self.classe_atual]["roupa"], CLASSES[self.classe_atual]["acessorio"], sexo="m")
-        self.canvas.gettags(self.canvas.find_all()[-1])
+        moveu = False
+        if dx or dy:
+            direcao = "cima" if dy < 0 else "baixo" if dy > 0 else "esquerda" if dx < 0 else "direita"
+            if direcao != self.direcao:
+                self.direcao = direcao
+                self._quadro_animacao = 0
+                self._tempo_animacao = 0
+            comprimento = math.hypot(dx, dy)
+            dx = VELOCIDADE_JOGADOR * dx / comprimento
+            dy = VELOCIDADE_JOGADOR * dy / comprimento
 
-    def _verificar_interacao(self):
-        self.interacao_atual = None
-        for item in self.interagiveis:
-            dist = ((self.player_x - item["x"]) ** 2 + (self.player_y - item["y"]) ** 2) ** 0.5
-            if dist < 42:
-                self.interacao_atual = item
-                self.dialogo_var.set(f"Pressione E ou espaço para interagir com {item['nome']}")
-                return
-        self.dialogo_var.set("")
+            novo_x = self.player_x + dx
+            if self._posicao_valida(novo_x, self.player_y):
+                self.player_x = novo_x
+                moveu = True
+            novo_y = self.player_y + dy
+            if self._posicao_valida(self.player_x, novo_y):
+                self.player_y = novo_y
+                moveu = True
 
-    def _interagir(self, event=None):
-        if self.interacao_atual is None:
-            return
-        item = self.interacao_atual
-        if item["tipo"] == "dialogo":
-            self.dialogo_var.set(item["texto"])
-            return
-        if item["tipo"] == "npc":
-            self.dialogo_var.set(item["texto"])
-            return
-        if item["tipo"] == "item":
-            self.dialogo_var.set("Você encontrou um módulo de energia para o mini-foguete.")
-            self.pecas.add("Módulo de Energia")
-            self.interagiveis.remove(item)
-            self._montar_mapa()
-            self._desenhar_jogador()
-            self._desenhar_npcs()
-            self._desenhar_hud()
-            self._atualizar_hud()
-            return
-        if item["tipo"] == "teste":
-            self._teste_escada()
-
-    def _teste_escada(self):
-        self.dialogo_var.set("Você tenta subir a escada. Rolagem do D20 em andamento...")
-        self._animar_dado(lambda valor: self._resolver_escada(valor))
-
-    def _animar_dado(self, depois):
-        valores = [random.randint(1, 20) for _ in range(12)]
-
-        def passo(i=0):
-            if i < len(valores):
-                self.d20_var.set(f"D20: {valores[i]}")
-                self.container.after(60, lambda: passo(i + 1))
-                return
-            self.d20_var.set(f"D20: {valores[-1]}")
-            depois(valores[-1])
-
-        passo()
-
-    def _resolver_escada(self, valor):
-        bonus = 2 if self.classe_atual == "Engenheiro" else 0
-        total = valor + bonus
-        if total >= 12:
-            self.dialogo_var.set(f"Sucesso! Você escalou com segurança. D20 {valor} + bônus {bonus} = {total}.")
-            self.pecas.add("Plataforma da estação")
-            self.jogador.hp = min(CLASSES[self.classe_atual]["hp"], self.jogador.hp + 6)
+            self._tempo_animacao += 1
+            if moveu and self._tempo_animacao >= 6:
+                self._quadro_animacao = (self._quadro_animacao + 1) % 2
+                self._tempo_animacao = 0
+            elif not moveu:
+                self._quadro_animacao = 0
+                self._tempo_animacao = 0
         else:
-            dano = max(3, 10 - self.jogador.defesa)
-            self.jogador.hp = max(0, self.jogador.hp - dano)
-            self.dialogo_var.set(f"Falhou. Você escorrega, perde {dano} de vida e cai de volta. D20 {valor} + bônus {bonus} = {total}.")
-        self._atualizar_hud()
+            self._quadro_animacao = 0
+            self._tempo_animacao = 0
+
+        self.audio_passos.atualizar(moveu)
+        self._desenhar_jogador()
+        self._verificar_teleporte()
+        self.container.after(20, self._atualizar_movimento)
+
+    def _verificar_teleporte(self):
+        for zona in ZONAS_TELEPORTE[self.sala_atual]:
+            x, y, largura, altura = zona["retangulo"]
+            if x <= self.player_x <= x + largura and y <= self.player_y <= y + altura:
+                self._carregar_sala(zona["destino"], zona["spawn"])
+                return
+        self._verificar_porta_corredor()
+
+    def _verificar_porta_corredor(self):
+        if self.sala_atual != "corredor":
+            return
+        if self._porta_ocupada is not None:
+            x, y, largura, altura = self._porta_ocupada["retangulo"]
+            if x <= self.player_x <= x + largura and y <= self.player_y <= y + altura:
+                return
+            self._porta_ocupada = None
+
+        for porta in PORTAS_CORREDOR:
+            x, y, largura, altura = porta["retangulo"]
+            if x <= self.player_x <= x + largura and y <= self.player_y <= y + altura:
+                self._porta_ocupada = porta
+                self._abrir_porta(porta["numero"])
+                return
+
+    def _abrir_porta(self, numero):
+        self._estado = "porta"
+        self.teclas_pressionadas.clear()
+        self.audio_passos.parar()
+
+        self.tela_porta = tk.Frame(self.container, bg="black", takefocus=True)
+        self.tela_porta.place(relx=0, rely=0, relwidth=1, relheight=1)
+        tk.Label(
+            self.tela_porta,
+            text=f"Você entrou na porta {numero}\n\nPressione ESC para voltar ao corredor",
+            fg="white",
+            bg="black",
+            font=("Consolas", 24, "bold"),
+            justify="center",
+        ).pack(expand=True)
+        self.tela_porta.bind("<KeyPress-Escape>", self._fechar_porta)
+        self.tela_porta.lift()
+        self.tela_porta.focus_set()
+
+    def _fechar_porta(self, event=None):
+        self.tela_porta.destroy()
+        self.tela_porta = None
+        self._estado = "mundo"
+        self.teclas_pressionadas.clear()
+        self.canvas.focus_set()
+        return "break"
+
+    def _carregar_sala(self, sala, spawn):
+        self.sala_atual = sala
+        self.player_x, self.player_y = spawn
+        self.audio_passos.parar()
+        self.direcao = "baixo"
+        self._quadro_animacao = 0
+        self._tempo_animacao = 0
+        self.teclas_pressionadas.clear()
+        self.dialogo_var.set("")
+        self._atualizar_nome_sala()
+        self._ultimo_tamanho = None
+        self._redimensionar_cena()
+        self.canvas.focus_set()
+
+    def _rolar_teste(self, event=None):
+        if self.animador_d20.rolando:
+            return
+        self.dialogo_var.set("Teste D20 em andamento...")
+        self.animador_d20.rolar_teste(
+            lambda valor: self.dialogo_var.set(f"Resultado do teste: {valor}.")
+        )
 
 
 if __name__ == "__main__":
