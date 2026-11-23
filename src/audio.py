@@ -15,14 +15,17 @@ class AudioPassos:
         if not andando:
             self.parar()
             return
-        if self._tocando or self._indisponivel:
+        if self._indisponivel:
+            return
+        if self._tocando:
+            if not pygame.mixer.music.get_busy():
+                self._tocar()
             return
 
         try:
             if pygame.mixer.get_init() is None:
                 pygame.mixer.init()
             pygame.mixer.music.load(str(self.arquivo))
-            pygame.mixer.music.play(loops=-1, start=self.inicio)
         except pygame.error as erro:
             self._indisponivel = True
             warnings.warn(
@@ -33,6 +36,19 @@ class AudioPassos:
             return
 
         self._tocando = True
+        self._tocar()
+
+    def _tocar(self):
+        try:
+            pygame.mixer.music.play(loops=0, start=self.inicio)
+        except pygame.error as erro:
+            self._tocando = False
+            self._indisponivel = True
+            warnings.warn(
+                f"Não foi possível iniciar o áudio de passos '{self.arquivo}': {erro}",
+                RuntimeWarning,
+                stacklevel=2,
+            )
 
     def parar(self):
         if self._tocando:

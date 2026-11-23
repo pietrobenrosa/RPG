@@ -7,15 +7,24 @@ from combate import rolar_d20
 
 
 class AnimadorD20:
-    def __init__(self, label, pasta_dados=None):
-        self.label = label
+    def __init__(
+        self,
+        canvas,
+        item_imagem,
+        item_texto,
+        pasta_dados=None,
+        ampliacao=2,
+    ):
+        self.canvas = canvas
+        self.item_imagem = item_imagem
+        self.item_texto = item_texto
         self.pasta_dados = pasta_dados or (
             Path(__file__).resolve().parents[1] / "assets" / "dados d20"
         )
         self.imagens = {
             valor: tk.PhotoImage(
                 file=str(self.pasta_dados / f"d20 - d{valor}.png")
-            ).zoom(2, 2)
+            ).zoom(ampliacao, ampliacao)
             for valor in range(1, 21)
         }
         self.rolando = False
@@ -25,7 +34,13 @@ class AnimadorD20:
 
     def _mostrar(self, valor):
         self._valor_atual = valor
-        self.label.configure(image=self.imagens[valor], text=f"D20: {valor}")
+        self.canvas.itemconfigure(self.item_imagem, image=self.imagens[valor])
+        self.canvas.itemconfigure(self.item_texto, text=f"D20: {valor}")
+
+    def mostrar(self, valor):
+        if not 1 <= valor <= 20:
+            raise ValueError("O resultado do D20 precisa estar entre 1 e 20.")
+        self._mostrar(valor)
 
     def rolar_teste(self, ao_terminar, resultado=None):
         if self.rolando:
@@ -49,7 +64,7 @@ class AnimadorD20:
 
             progresso = indice / (len(quadros) - 1)
             atraso = int(35 + 150 * progresso ** 2)
-            self._agendamento = self.label.after(
+            self._agendamento = self.canvas.after(
                 atraso,
                 lambda: animar_quadro(indice + 1),
             )

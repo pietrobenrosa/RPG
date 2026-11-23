@@ -1,0 +1,26 @@
+{
+  "versao": 1,
+  "jogador": {
+    "nome": "Vance",
+    "classe": "Engenheiro",
+    "hp": 34,
+    "ataque": 6,
+    "defesa": 8,
+    "nivel": 1
+  },
+  "sala_atual": "sala_hibernacao",
+  "posicao": [
+    235,
+    410
+  ],
+  "direcao": "cima",
+  "inventario": {
+    "Kit Médico": 1,
+    "EMP": 1
+  },
+  "itens_no_chao": [],
+  "xp": 0,
+  "xp_proximo_nivel": 100,
+  "pecas": [],
+  "ataque_extra": 0
+}

@@ -21,6 +21,7 @@ Agora, cabe a você sabotar o núcleo da estação, enfrentar a IA corrompida e 
 * **Sistema de Combate D20 Animado:** Rolagem de dados em 2D na tela com animação de desaceleração, cálculo automático de modificadores de atributo, acertos críticos e falhas críticas.
 * **Três Classes Jogáveis:** Estilos de jogo distintos com atributos, habilidades exclusivas e formas próprias de gerenciar energia/mana.
 * **Gerenciamento de Recursos:** Sistema de turnos estratégico com menu de habilidades, uso de poções/estimulantes no inventário e controle de pontos de vida (HP) e energia arcana (MP).
+* **Save e Continuação:** Salve o progresso durante a partida e continue do mesmo personagem, sala, posição e inventário pelo menu.
 * **Narrativa Ramificada:** História dividida em três atos principais (*O Bunker*, *A Estação Orbital* e *O Núcleo*), permitindo desbloquear **múltiplos finais** dependendo das escolhas feitas durante a jornada.
 
 ---
@@ -55,6 +56,7 @@ o-despertar-do-eter/
 │   ├── combate.py        # Regras do sistema D20
 │   ├── dice_anim.py      # Rolagem e animação visual do dado
 │   ├── jogo.py           # Salas, movimento, colisões e HUD
+│   ├── savegame.py       # Salvar e carregar progresso em JSON
 │   └── main.py           # Ponto de entrada da aplicação
 └── README.md             # Documentação do projeto
 ```
@@ -64,13 +66,17 @@ o-despertar-do-eter/
 ## 🕹️ Salas, movimento e D20
 
 * Use **WASD** ou as **setas** para andar. O personagem anima na direção do movimento.
-* Atravesse a porta da sala de hibernação para entrar no corredor. As quatro portas desenhadas no corredor ainda são apenas parte do cenário.
+* Atravesse a porta da sala de hibernação para entrar no corredor. As portas 1, 2 e 4 mostram uma tela de identificação.
 * No começo, o personagem aparece em frente à segunda câmara criogênica, da esquerda para a direita (a que tem a maca aberta).
 * No corredor, avance para cima para explorar até a parede do fundo; volte para baixo até a entrada para retornar à sala de hibernação.
 * O personagem se move 30% mais rápido que antes.
-* Cada uma das quatro portas do corredor abre uma tela preta com a identificação da porta; use **ESC** para voltar.
-* O som de passos começa no segundo 2 do arquivo `assets/audios/passos.mp3`, repete enquanto o personagem anda e para quando ele para.
-* Pressione **R** para testar a rolagem D20. O dado fica parado até a tecla ser pressionada, anima e para no resultado no canto inferior direito.
+* A porta 3 é reforçada: pegue a **Chave Dourada** no chão da sala de hibernação para abri-la ou tente arrombá-la com um resultado **18+** no D20. O teste só pode ser feito uma vez; as opções aparecem perto da porta e somem ao se afastar. Use **ESC** na tela da sala 3 para voltar ao corredor.
+* Pressione **E** (ou clique em **MOCHILA [E]**) para abrir o inventário. Use as setas para selecionar, **Enter** para usar, **Delete** para jogar no chão e **ESC** para fechar. Itens no chão podem ser clicados para recolher.
+* A vida é mostrada no alto à esquerda; XP e nível ficam no alto à direita.
+* Na barra superior, **SALVAR** grava o progresso em `dados/savegame.json`, **MENU** salva e volta ao menu e **SAIR** pergunta se deseja salvar antes de fechar. Se houver save, o menu mostra **CONTINUAR JOGO**.
+* O som de passos começa no segundo 2 do arquivo `assets/audios/passos.mp3` e recomeça desse ponto a cada repetição; toca enquanto o personagem anda e para quando ele para.
+* As faces do dado já têm transparência nos PNGs.
+* Pressione **R** para testar a rolagem D20. O dado fica parado até a tecla ser pressionada, anima e para no resultado no canto inferior direito. O teste de arrombamento mostra o dado ampliado no centro da tela.
 * Os sprites são ampliados sem interpolação: o personagem usa o dobro do tamanho no corredor e o dado fica 2× maior, preservando as bordas do pixel art.
 * As salas usam coordenadas virtuais de **960 × 540**, com a origem `(0, 0)` no canto superior esquerdo.
 

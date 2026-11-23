@@ -73,7 +73,7 @@ def _mostrar_como_jogar(container):
     ).pack(fill="x", padx=32, pady=(22, 28))
 
 
-def mostrar_menu(container, ao_iniciar):
+def mostrar_menu(container, ao_iniciar, ao_continuar=None):
     for widget in container.winfo_children():
         widget.destroy()
 
@@ -172,6 +172,21 @@ def mostrar_menu(container, ao_iniciar):
         justify="left",
     ).grid(row=2, column=0, sticky="w", pady=(0, 30))
 
+    linha_botao = 3
+    if ao_continuar is not None:
+        ctk.CTkButton(
+            conteudo,
+            text="↻   CONTINUAR JOGO",
+            font=("Consolas", 15, "bold"),
+            fg_color="#202D3B",
+            hover_color="#2A3B4D",
+            text_color=COR_TEXTO,
+            height=48,
+            corner_radius=10,
+            command=ao_continuar,
+        ).grid(row=linha_botao, column=0, sticky="ew", pady=(0, 10))
+        linha_botao += 1
+
     ctk.CTkButton(
         conteudo,
         text="▶   COMEÇAR JOGO",
@@ -182,7 +197,8 @@ def mostrar_menu(container, ao_iniciar):
         height=54,
         corner_radius=10,
         command=lambda: ao_iniciar("Vance"),
-    ).grid(row=3, column=0, sticky="ew", pady=(0, 12))
+    ).grid(row=linha_botao, column=0, sticky="ew", pady=(0, 12))
+    linha_botao += 1
     ctk.CTkButton(
         conteudo,
         text="?   COMO JOGAR",
@@ -193,7 +209,8 @@ def mostrar_menu(container, ao_iniciar):
         height=48,
         corner_radius=10,
         command=lambda: _mostrar_como_jogar(container),
-    ).grid(row=4, column=0, sticky="ew", pady=(0, 12))
+    ).grid(row=linha_botao, column=0, sticky="ew", pady=(0, 12))
+    linha_botao += 1
     ctk.CTkButton(
         conteudo,
         text="SAIR",
@@ -204,7 +221,7 @@ def mostrar_menu(container, ao_iniciar):
         height=42,
         corner_radius=10,
         command=container.winfo_toplevel().quit,
-    ).grid(row=5, column=0, sticky="ew")
+    ).grid(row=linha_botao, column=0, sticky="ew")
 
     ctk.CTkLabel(
         painel_menu,
