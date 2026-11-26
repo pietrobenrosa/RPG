@@ -1,7 +1,10 @@
 import sys
 import unittest
+import warnings
 from pathlib import Path
 from unittest.mock import Mock, call, patch
+
+import pygame
 
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
@@ -17,6 +20,8 @@ from jogo import (
     SPAWN_INICIAL,
     TAMANHO_PERSONAGEM,
     VELOCIDADE_JOGADOR,
+    _ampliar_desenho_icone,
+    _numero_finito,
 )
 
 
@@ -267,6 +272,28 @@ class TestAudioPassos(unittest.TestCase):
         audio.atualizar(False)
         mixer.music.stop.assert_called_once_with()
 
+    @patch("audio.pygame.mixer")
+    def test_audio_desativa_se_estado_ou_parada_do_mixer_falhar(self, mixer):
+        mixer.music.get_busy.side_effect = pygame.error("dispositivo indisponível")
+        audio = AudioPassos(Path("passos.mp3"))
+        audio._tocando = True
+
+        with warnings.catch_warnings(record=True) as avisos:
+            warnings.simplefilter("always")
+            audio.atualizar(True)
+
+        self.assertTrue(audio._indisponivel)
+        self.assertFalse(audio._tocando)
+        self.assertEqual(len(avisos), 1)
+
+        audio._indisponivel = False
+        audio._tocando = True
+        mixer.music.stop.side_effect = pygame.error("dispositivo indisponível")
+        with self.assertWarns(RuntimeWarning):
+            audio.parar()
+        self.assertTrue(audio._indisponivel)
+        self.assertFalse(audio._tocando)
+
 
 class TestInventario(unittest.TestCase):
     def test_usar_kit_medico_cura_e_consume_um_item(self):
@@ -309,6 +336,106 @@ class TestInventario(unittest.TestCase):
             [{"nome": "EMP", "sala": "corredor", "x": 500, "y": 430}],
         )
         jogo._desenhar_itens_chao.assert_called_once_with()
+
+    def test_itens_com_asset_sao_desenhados_com_icone_no_chao(self):
+        jogo = Jogo.__new__(Jogo)
+        jogo.sala_atual = "sala_hibernacao"
+        jogo.itens_no_chao = [
+            {"nome": "Kit Médico", "sala": "sala_hibernacao", "x": 300, "y": 400},
+            {"nome": "Chave Dourada", "sala": "sala_hibernacao", "x": 500, "y": 430},
+        ]
+        jogo._icones_itens_chao = {
+            "Kit Médico": "kit_icon",
+            "Chave Dourada": "key_icon",
+        }
+        jogo.canvas = Mock()
+        jogo.canvas.winfo_width.return_value = 960
+        jogo.canvas.winfo_height.return_value = 540
+        jogo._porta3_popup_visivel = False
+
+        jogo._desenhar_itens_chao()
+
+        imagens = [
+            chamada.kwargs["image"]
+            for chamada in jogo.canvas.create_image.call_args_list
+        ]
+        self.assertEqual(imagens, ["kit_icon", "key_icon"])
+        self.assertEqual(jogo.canvas.create_image.call_count, 2)
+        jogo.canvas.create_text.assert_not_called()
+
+    def test_itens_sem_asset_tem_marcador_sem_exibir_nome_no_chao(self):
+        jogo = Jogo.__new__(Jogo)
+        jogo.sala_atual = "corredor"
+        jogo.itens_no_chao = [
+            {"nome": "EMP", "sala": "corredor", "x": 500, "y": 430}
+        ]
+        jogo._icones_itens_chao = {}
+        jogo.canvas = Mock()
+        jogo.canvas.winfo_width.return_value = 960
+        jogo.canvas.winfo_height.return_value = 540
+        jogo._porta3_popup_visivel = False
+
+        jogo._desenhar_itens_chao()
+
+        jogo.canvas.create_polygon.assert_called_once()
+        jogo.canvas.create_text.assert_not_called()
+
+    def test_ampliar_desenho_preserva_canvas_e_transparencia(self):
+        from PIL import Image, ImageDraw
+
+        imagem = Image.new("RGBA", (64, 64))
+        ImageDraw.Draw(imagem).rectangle((20, 24, 43, 39), fill="red")
+
+        ampliada = _ampliar_desenho_icone(imagem)
+
+        self.assertEqual(ampliada.size, (64, 64))
+        self.assertEqual(ampliada.getchannel("A").getbbox(), (17, 22, 47, 42))
+        self.assertEqual(ampliada.getpixel((0, 0))[3], 0)
+
+    def test_numero_grande_demais_para_validar_save_e_rejeitado(self):
+        self.assertFalse(_numero_finito(10**10000))
+
+    def test_icone_do_item_selecionado_aparece_no_inventario(self):
+        jogo = Jogo.__new__(Jogo)
+        jogo.lista_inventario = Mock()
+        jogo.lista_inventario.curselection.return_value = (0,)
+        jogo._itens_inventario = [("Kit Médico", 1)]
+        jogo._icones_itens_inventario = {"Kit Médico": "kit_icon"}
+        jogo._icone_item_vazio = "imagem_transparente_56px"
+        jogo.inventario_icone = Mock()
+        jogo.inventario_feedback = Mock()
+        jogo.botao_usar = Mock()
+        jogo.botao_jogar = Mock()
+
+        jogo._atualizar_opcoes_inventario()
+
+        jogo.inventario_icone.configure.assert_called_once_with(image="kit_icon")
+        jogo.inventario_feedback.configure.assert_called_once_with(
+            text="Selecionado: Kit Médico"
+        )
+
+    def test_inventario_vazio_mantem_icone_transparente_de_tamanho_fixo(self):
+        jogo = Jogo.__new__(Jogo)
+        jogo.lista_inventario = Mock()
+        jogo.lista_inventario.curselection.return_value = ()
+        jogo._itens_inventario = []
+        jogo._icones_itens_inventario = {}
+        jogo._icone_item_vazio = "imagem_transparente_56px"
+        jogo.inventario_icone = Mock()
+        jogo.inventario_feedback = Mock()
+        jogo.botao_usar = Mock()
+        jogo.botao_jogar = Mock()
+
+        jogo._atualizar_opcoes_inventario()
+
+        jogo.inventario_icone.configure.assert_called_once_with(
+            image="imagem_transparente_56px"
+        )
+        jogo.botao_usar.configure.assert_called_once_with(state="disabled")
+        jogo.botao_jogar.configure.assert_called_once_with(state="disabled")
+        jogo.inventario_feedback.configure.assert_called_once_with(
+            text="Inventário vazio."
+        )
 
 
 class TestAnimacaoD20(unittest.TestCase):

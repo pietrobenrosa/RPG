@@ -33,6 +33,25 @@ class TestSaveGame(unittest.TestCase):
             with self.assertRaises(ValueError):
                 carregar_jogo(caminho)
 
+    def test_dado_invalido_nao_corrompe_o_save_existente(self):
+        with tempfile.TemporaryDirectory() as diretorio:
+            caminho = Path(diretorio) / "savegame.json"
+            original = {"versao": VERSAO_SAVE, "xp": 10}
+            salvar_jogo(original, caminho)
+
+            with self.assertRaises(ValueError):
+                salvar_jogo({"versao": VERSAO_SAVE, "xp": float("nan")}, caminho)
+
+            self.assertEqual(carregar_jogo(caminho), original)
+
+    def test_save_com_codificacao_invalida_retorna_erro_compreensivel(self):
+        with tempfile.TemporaryDirectory() as diretorio:
+            caminho = Path(diretorio) / "savegame.json"
+            caminho.write_bytes(b"\xff\xfe")
+
+            with self.assertRaisesRegex(ValueError, "UTF-8"):
+                carregar_jogo(caminho)
+
     def test_restaurar_progresso_reconstroi_personagem_e_mundo(self):
         dados = {
             "versao": VERSAO_SAVE,

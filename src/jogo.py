@@ -79,6 +79,10 @@ IMAGENS_SALAS = {
     "corredor": Path(__file__).resolve().parents[1] / "assets" / "cenarios" / "Corredor.png",
 }
 AUDIO_PASSOS = Path(__file__).resolve().parents[1] / "assets" / "audios" / "passos.mp3"
+IMAGENS_ITENS = {
+    "Kit Médico": Path(__file__).resolve().parents[1] / "assets" / "itens" / "kit_medico.png",
+    "Chave Dourada": Path(__file__).resolve().parents[1] / "assets" / "itens" / "pixil-frame-0 (70).png",
+}
 
 # Coordenadas (x, y, largura, altura) no mundo virtual de 960x540.
 # Para bloquear uma área, ajuste ou acrescente retângulos nestas listas.
@@ -144,6 +148,36 @@ ITEM_CHAVE_DOURADA = {
     "x": 500,
     "y": 430,
 }
+
+
+def _ampliar_desenho_icone(imagem, escala=1.25):
+    caixa = imagem.getchannel("A").getbbox()
+    if caixa is None:
+        return imagem.copy()
+
+    desenho = imagem.crop(caixa)
+    tamanho = (
+        min(imagem.width, round(desenho.width * escala)),
+        min(imagem.height, round(desenho.height * escala)),
+    )
+    desenho = desenho.resize(tamanho, Image.Resampling.NEAREST)
+    ampliada = Image.new("RGBA", imagem.size)
+    ampliada.alpha_composite(
+        desenho,
+        (
+            (imagem.width - tamanho[0]) // 2,
+            (imagem.height - tamanho[1]) // 2,
+        ),
+    )
+    return ampliada
+
+
+def _numero_finito(valor):
+    try:
+        return math.isfinite(valor)
+    except OverflowError:
+        return False
+
 
 LIMITES_SALAS = {
     "sala_hibernacao": (20, 25, 940, 520),
@@ -298,7 +332,16 @@ class Jogo:
         self.pecas = set()
         self.ataque_extra = 0
         self._estado = "mundo"
-        self._iniciar_mapa()
+        try:
+            self._iniciar_mapa()
+        except (OSError, ValueError, tk.TclError) as erro:
+            self._estado = "selecao"
+            messagebox.showerror(
+                "Erro ao iniciar",
+                f"Não foi possível carregar o jogo:\n{erro}",
+                parent=self.container.winfo_toplevel(),
+            )
+            self._setup_tela_selecao()
 
     def _restaurar_progresso(self, dados):
         if not isinstance(dados, dict):
@@ -351,7 +394,7 @@ class Jogo:
             or any(
                 isinstance(coordenada, bool)
                 or not isinstance(coordenada, (int, float))
-                or not math.isfinite(coordenada)
+                or not _numero_finito(coordenada)
                 for coordenada in posicao
             )
         ):
@@ -371,10 +414,10 @@ class Jogo:
             or item.get("sala") not in IMAGENS_SALAS
             or isinstance(item.get("x"), bool)
             or not isinstance(item.get("x"), (int, float))
-            or not math.isfinite(item["x"])
+            or not _numero_finito(item["x"])
             or isinstance(item.get("y"), bool)
             or not isinstance(item.get("y"), (int, float))
-            or not math.isfinite(item["y"])
+            or not _numero_finito(item["y"])
             for item in itens_no_chao
         ):
             raise ValueError("Os itens no chão do save são inválidos.")
@@ -596,6 +639,22 @@ class Jogo:
 
         self.canvas = tk.Canvas(self.container, width=1040, height=585, bg="#11171D", highlightthickness=0)
         self.canvas.pack(fill="both", expand=True, padx=14, pady=12)
+        self._icones_itens = {
+            nome: _ampliar_desenho_icone(Image.open(caminho).convert("RGBA"))
+            for nome, caminho in IMAGENS_ITENS.items()
+        }
+        self._icones_itens_chao = {
+            nome: ImageTk.PhotoImage(
+                imagem.resize((48, 48), Image.Resampling.NEAREST)
+            )
+            for nome, imagem in self._icones_itens.items()
+        }
+        self._icones_itens_inventario = {
+            nome: ImageTk.PhotoImage(
+                imagem.resize((56, 56), Image.Resampling.NEAREST)
+            )
+            for nome, imagem in self._icones_itens.items()
+        }
         self.canvas.bind("<Configure>", self._redimensionar_cena)
         self.canvas.bind("<KeyPress>", self._on_key)
         self.canvas.bind("<KeyRelease>", self._on_key_release)
@@ -738,14 +797,31 @@ class Jogo:
         self.lista_inventario.bind("<Delete>", self._jogar_item_no_chao)
         self.lista_inventario.bind("<KeyPress-Escape>", self._fechar_inventario)
 
+        detalhes_item = tk.Frame(painel, bg=PAINEL)
+        detalhes_item.pack(fill="x", pady=(10, 4))
+        self._icone_item_vazio = tk.PhotoImage(
+            master=self.tela_inventario,
+            width=56,
+            height=56,
+        )
+        self.inventario_icone = tk.Label(
+            detalhes_item,
+            image=self._icone_item_vazio,
+            bg=PAINEL,
+            width=56,
+            height=56,
+        )
+        self.inventario_icone.pack(side="left", padx=(0, 10))
         self.inventario_feedback = tk.Label(
-            painel,
+            detalhes_item,
             text="Use as setas para escolher um item.",
             fg=SUAVE,
             bg=PAINEL,
             font=("Consolas", 10),
+            anchor="w",
+            justify="left",
         )
-        self.inventario_feedback.pack(pady=(10, 4))
+        self.inventario_feedback.pack(side="left", fill="x", expand=True)
 
         botoes = tk.Frame(painel, bg=PAINEL)
         botoes.pack(fill="x", pady=(8, 0))
@@ -798,7 +874,7 @@ class Jogo:
 
     def _item_selecionado(self):
         selecao = self.lista_inventario.curselection()
-        if not selecao or selecao[0] >= len(self._itens_inventario):
+        if not selecao or not 0 <= selecao[0] < len(self._itens_inventario):
             return None
         return self._itens_inventario[selecao[0]][0]
 
@@ -823,8 +899,14 @@ class Jogo:
         )
         self.botao_jogar.configure(state="normal" if item else "disabled")
         if item:
+            icone = self._icones_itens_inventario.get(
+                item,
+                self._icone_item_vazio,
+            )
+            self.inventario_icone.configure(image=icone)
             self.inventario_feedback.configure(text=f"Selecionado: {item}")
         else:
+            self.inventario_icone.configure(image=self._icone_item_vazio)
             self.inventario_feedback.configure(text="Inventário vazio.")
 
     def _consumir_item(self, nome):
@@ -881,7 +963,9 @@ class Jogo:
         return "break"
 
     def _pegar_item_chao(self, indice):
-        if indice >= len(self.itens_no_chao):
+        if not 0 <= indice < len(self.itens_no_chao):
+            return
+        if self.itens_no_chao[indice]["sala"] != self.sala_atual:
             return
         item = self.itens_no_chao[indice]
         self.inventario[item["nome"]] = self.inventario.get(item["nome"], 0) + 1
@@ -900,21 +984,47 @@ class Jogo:
         ]
         for deslocamento, (indice, item) in enumerate(visiveis):
             tag = f"item_chao_{indice}"
-            self.canvas.create_text(
-                (item["x"] + 30 + deslocamento * 8) * escala_x,
-                (item["y"] - 20 - deslocamento * 12) * escala_y,
-                text=f"[ {item['nome']} ]",
-                fill="#FFE08A",
-                font=("Consolas", 11, "bold"),
-                tags=("item_chao", tag),
-            )
+            x = (item["x"] + 30 + deslocamento * 8) * escala_x
+            y = (item["y"] - 20 - deslocamento * 12) * escala_y
+            icone = self._icones_itens_chao.get(item["nome"])
+            if icone:
+                self.canvas.create_image(
+                    x,
+                    y,
+                    image=icone,
+                    tags=("item_chao", tag),
+                )
+            else:
+                meia_largura = 10 * escala_x
+                meia_altura = 10 * escala_y
+                self.canvas.create_polygon(
+                    x,
+                    y - meia_altura,
+                    x + meia_largura,
+                    y,
+                    x,
+                    y + meia_altura,
+                    x - meia_largura,
+                    y,
+                    fill="#FFE08A",
+                    outline="#FFF2C2",
+                    tags=("item_chao", tag),
+                )
             self.canvas.tag_bind(
                 tag,
                 "<Button-1>",
                 lambda _event, item_indice=indice: self._pegar_item_chao(item_indice),
             )
-            self.canvas.tag_bind(tag, "<Enter>", lambda _event: self.canvas.configure(cursor="hand2"))
-            self.canvas.tag_bind(tag, "<Leave>", lambda _event: self.canvas.configure(cursor=""))
+            self.canvas.tag_bind(
+                tag,
+                "<Enter>",
+                lambda _event: self.canvas.configure(cursor="hand2"),
+            )
+            self.canvas.tag_bind(
+                tag,
+                "<Leave>",
+                lambda _event: self.canvas.configure(cursor=""),
+            )
         if hasattr(self, "player"):
             self.canvas.tag_raise(self.player)
         if hasattr(self, "d20_imagem"):

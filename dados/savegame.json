@@ -10,15 +10,18 @@
   },
   "sala_atual": "sala_hibernacao",
   "posicao": [
-    235,
-    410
+    658.6342533005865,
+    500.2657466994115
   ],
-  "direcao": "cima",
+  "direcao": "baixo",
   "inventario": {
-    "Kit Médico": 1,
-    "EMP": 1
+    "Chave Dourada": 1,
+    "EMP": 1,
+    "Kit Médico": 1
   },
   "itens_no_chao": [],
+  "porta3_tentativa_usada": true,
+  "porta3_aberta": false,
   "xp": 0,
   "xp_proximo_nivel": 100,
   "pecas": [],

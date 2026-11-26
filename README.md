@@ -71,7 +71,7 @@ o-despertar-do-eter/
 * No corredor, avance para cima para explorar até a parede do fundo; volte para baixo até a entrada para retornar à sala de hibernação.
 * O personagem se move 30% mais rápido que antes.
 * A porta 3 é reforçada: pegue a **Chave Dourada** no chão da sala de hibernação para abri-la ou tente arrombá-la com um resultado **18+** no D20. O teste só pode ser feito uma vez; as opções aparecem perto da porta e somem ao se afastar. Use **ESC** na tela da sala 3 para voltar ao corredor.
-* Pressione **E** (ou clique em **MOCHILA [E]**) para abrir o inventário. Use as setas para selecionar, **Enter** para usar, **Delete** para jogar no chão e **ESC** para fechar. Itens no chão podem ser clicados para recolher.
+* Pressione **E** (ou clique em **MOCHILA [E]**) para abrir o inventário. Use as setas para selecionar, **Enter** para usar, **Delete** para jogar no chão e **ESC** para fechar. O kit médico e a chave dourada aparecem com seus ícones na mochila e no chão; itens no chão podem ser clicados para recolher.
 * A vida é mostrada no alto à esquerda; XP e nível ficam no alto à direita.
 * Na barra superior, **SALVAR** grava o progresso em `dados/savegame.json`, **MENU** salva e volta ao menu e **SAIR** pergunta se deseja salvar antes de fechar. Se houver save, o menu mostra **CONTINUAR JOGO**.
 * O som de passos começa no segundo 2 do arquivo `assets/audios/passos.mp3` e recomeça desse ponto a cada repetição; toca enquanto o personagem anda e para quando ele para.

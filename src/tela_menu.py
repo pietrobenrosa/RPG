@@ -1,4 +1,5 @@
 from pathlib import Path
+import warnings
 
 import customtkinter as ctk
 from PIL import Image, ImageSequence
@@ -98,6 +99,8 @@ def mostrar_menu(container, ao_iniciar, ao_continuar=None):
                     for quadro in ImageSequence.Iterator(gif)
                 ]
                 duracao = max(40, gif.info.get("duration", 100))
+            if not quadros:
+                raise ValueError("O GIF não contém quadros.")
 
             # O GIF original tem 48x48: amplie mantendo a proporção quadrada.
             tamanho_maximo = max(
@@ -139,7 +142,13 @@ def mostrar_menu(container, ao_iniciar, ao_continuar=None):
 
             if len(imagens_ctk) > 1:
                 imagem_gif.after(duracao, animar, 1 % len(imagens_ctk))
-        except (OSError, ValueError):
+        except (EOFError, OSError, ValueError) as erro:
+            warnings.warn(
+                f"Não foi possível exibir a animação do menu "
+                f"'{caminho_gif}': {erro}",
+                RuntimeWarning,
+                stacklevel=2,
+            )
             _mostrar_fallback_arte(area_arte)
     else:
         _mostrar_fallback_arte(area_arte)
