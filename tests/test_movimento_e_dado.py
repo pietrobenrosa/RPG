@@ -5,25 +5,30 @@ from pathlib import Path
 from unittest.mock import Mock, call, patch
 
 import pygame
+from PIL import Image
 
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
 from dice_anim import AnimadorD20
 from audio import AudioPassos
+from combate import rolar_d20
 from jogo import (
     INVENTARIOS_INICIAIS,
     IMAGENS_SALAS,
+    IMAGEM_COFRE_SALA1,
     IMAGEM_SALA1_TV_LIGADA,
     ITEM_CHAVE_DOURADA,
     ITENS_USAVEIS,
     Jogo,
+    NOME_PECA_COFRE_SALA1,
     NOME_PECA_FOGUETE_SALA1,
     PORTAS_CORREDOR,
-    PISTA_COFRE_SALA1,
     SPAWN_INICIAL,
     TAMANHO_PERSONAGEM,
     VELOCIDADE_JOGADOR,
+    TEXTO_TRANSMISSAO_SALA1,
+    ZONA_QUADRO_SALA1,
     ZONA_TV_SALA1,
     ZONAS_ARMARIOS_SALA1,
     _ampliar_desenho_icone,
@@ -86,6 +91,15 @@ class TestMovimentoESalas(unittest.TestCase):
         self.assertTrue(jogo._posicao_valida(480, 500))
         self.assertFalse(jogo._posicao_valida(480, 200))
         self.assertFalse(jogo._posicao_valida(100, 300))
+
+    def test_colisao_bloqueia_armarios_sem_bloquear_o_piso_a_frente(self):
+        jogo = Jogo.__new__(Jogo)
+        jogo.sala_atual = "sala_1"
+
+        self.assertFalse(jogo._posicao_valida(180, 245))
+        self.assertFalse(jogo._posicao_valida(270, 245))
+        self.assertTrue(jogo._posicao_valida(180, 265))
+        self.assertTrue(jogo._posicao_valida(270, 265))
 
     def test_personagem_fica_duas_vezes_maior_no_corredor(self):
         self.assertEqual(TAMANHO_PERSONAGEM["corredor"], 2 * TAMANHO_PERSONAGEM["sala_hibernacao"])
@@ -340,6 +354,63 @@ class TestMovimentoESalas(unittest.TestCase):
             None,
         )
 
+    @patch("jogo.tk.Button")
+    @patch("jogo.tk.Label")
+    @patch("jogo.tk.Frame")
+    def test_abrir_porta_reforcada_mostra_tela_de_morte(
+        self,
+        frame,
+        label,
+        button,
+    ):
+        jogo = Jogo.__new__(Jogo)
+        jogo.porta3_aberta = False
+        jogo.container = Mock()
+        jogo.teclas_pressionadas = set()
+        jogo.audio_passos = Mock()
+        jogo._remover_opcoes_porta3 = Mock()
+        jogo.ao_menu = Mock()
+
+        jogo._abrir_porta(3)
+
+        self.assertTrue(jogo.porta3_aberta)
+        self.assertEqual(jogo._estado, "morte")
+        self.assertEqual(
+            frame.return_value.place.call_args.kwargs,
+            {"relx": 0, "rely": 0, "relwidth": 1, "relheight": 1},
+        )
+        textos = [chamada.kwargs.get("text", "") for chamada in label.call_args_list]
+        self.assertIn("VOCÊ MORREU", textos)
+        self.assertTrue(any("anomalias" in texto for texto in textos))
+        button.assert_called_once()
+        jogo._voltar_ao_menu_apos_morte()
+        jogo.ao_menu.assert_called_once_with()
+
+    def test_resultado_de_teste_mantem_foco_na_tela_de_morte(self):
+        jogo = Jogo.__new__(Jogo)
+        jogo._estado = "teste_interacao"
+        jogo.canvas = Mock()
+        jogo.dialogo_var = Mock()
+        jogo.jogador = Mock(hp=20)
+        jogo._ocultar_dado_rolagem = Mock()
+        jogo._atualizar_hud = Mock()
+        jogo.tela_porta = Mock()
+
+        def resolver(sucesso, _resultado):
+            self.assertTrue(sucesso)
+            jogo._estado = "morte"
+
+        jogo._finalizar_teste_interacao(
+            20,
+            18,
+            "ARROMBAR PORTA",
+            resolver,
+            None,
+        )
+
+        jogo.tela_porta.focus_set.assert_called_once_with()
+        jogo.canvas.focus_set.assert_not_called()
+
 
 class TestAudioPassos(unittest.TestCase):
     @patch("audio.pygame.mixer")
@@ -542,19 +613,22 @@ class TestInteracoesSala1(unittest.TestCase):
         jogo.tv_sala1_ligada = False
         jogo._redimensionar_cena = Mock()
         jogo.dialogo_var = Mock()
+        jogo._mostrar_transmissao_tv_sala1 = Mock()
 
         jogo._ligar_tv_sala1()
         jogo._ligar_tv_sala1()
 
         self.assertTrue(jogo.tv_sala1_ligada)
         jogo._redimensionar_cena.assert_called_once_with()
-        lore = jogo.dialogo_var.set.call_args.args[0]
-        self.assertIn("anomalias dominaram a Terra", lore)
-        self.assertIn("estação espacial", lore)
+        jogo._mostrar_transmissao_tv_sala1.assert_called_once_with()
+        self.assertIn("Não saia de casa", TEXTO_TRANSMISSAO_SALA1)
+        self.assertIn("estação orbital", TEXTO_TRANSMISSAO_SALA1)
 
     def test_zonas_de_tv_armarios_e_sala_estao_definidas(self):
         self.assertEqual(len(ZONA_TV_SALA1), 4)
         self.assertEqual(len(ZONAS_ARMARIOS_SALA1), 2)
+        self.assertEqual(len(ZONA_QUADRO_SALA1), 4)
+        self.assertTrue(IMAGEM_COFRE_SALA1.is_file())
 
     def test_sala1_usa_imagem_desligada_ao_chegar_e_asset_ligado_ao_interagir(self):
         self.assertEqual(IMAGENS_SALAS["sala_1"].name, "Sala1.png")
@@ -634,6 +708,7 @@ class TestInteracoesSala1(unittest.TestCase):
     def test_investigacao_entrega_codigo_e_arrombamento_entrega_peca(self):
         jogo = Jogo.__new__(Jogo)
         jogo.inventario = {}
+        jogo.codigo_cofre_sala1 = "0042"
         jogo.pecas = set()
         jogo.armarios_sala1_investigados = False
         jogo.armarios_sala1_arrombados = False
@@ -644,9 +719,110 @@ class TestInteracoesSala1(unittest.TestCase):
         jogo._resultado_arrombamento_armarios(True)
 
         self.assertTrue(jogo.armarios_sala1_investigados)
-        self.assertIn(PISTA_COFRE_SALA1, jogo.inventario)
+        self.assertIn("Código do Cofre: 0042", jogo.inventario)
         self.assertTrue(jogo.armarios_sala1_arrombados)
         self.assertIn(NOME_PECA_FOGUETE_SALA1, jogo.pecas)
+
+    def test_investigar_quadro_exige_teste_d10_e_revela_o_cofre(self):
+        jogo = Jogo.__new__(Jogo)
+        jogo._estado = "mundo"
+        jogo.quadro_sala1_investigado = False
+        jogo._perto_do_quadro_sala1 = Mock(return_value=True)
+        jogo._remover_opcoes_cofre_sala1 = Mock()
+        jogo._iniciar_teste_interacao = Mock()
+
+        jogo._acao_cofre_sala1("investigar")
+
+        chamada = jogo._iniciar_teste_interacao.call_args
+        self.assertEqual(chamada.args[:2], (10, "INVESTIGAR QUADRO"))
+        self.assertTrue(callable(chamada.args[2]))
+
+        jogo._ultimo_tamanho = (640, 360)
+        jogo._redimensionar_cena = Mock()
+        jogo.dialogo_var = Mock()
+        jogo._desenhar_opcoes_cofre_sala1 = Mock()
+        jogo._resultado_investigacao_quadro_sala1(True)
+
+        self.assertTrue(jogo.quadro_sala1_investigado)
+        self.assertIsNone(jogo._ultimo_tamanho)
+        jogo._redimensionar_cena.assert_called_once_with()
+        jogo._desenhar_opcoes_cofre_sala1.assert_called_once_with()
+
+    @patch("jogo.ImageTk.PhotoImage", return_value="safe_image")
+    def test_cofre_revelado_substitui_o_quadro_no_cenario(self, _photo_image):
+        jogo = Jogo.__new__(Jogo)
+        jogo.sala_atual = "sala_1"
+        jogo.quadro_sala1_investigado = True
+        jogo._cofre_sala1_canvas = None
+        jogo._imagem_cofre_sala1_tk = None
+        jogo._imagem_cofre_sala1 = Mock(width=78, height=64)
+        jogo._imagem_cofre_sala1.resize.return_value = "scaled_safe"
+        jogo._imagens_fundo = {"sala_1": Mock(width=1024, height=576)}
+        jogo.canvas = Mock()
+
+        jogo._desenhar_cofre_sala1(1, 1)
+
+        jogo._imagem_cofre_sala1.resize.assert_called_once_with(
+            (73, 60),
+            Image.Resampling.NEAREST,
+        )
+        jogo.canvas.create_image.assert_called_once_with(
+            720,
+            88,
+            image="safe_image",
+            tags=("cofre_sala1",),
+        )
+
+    def test_senha_correta_abre_cofre_e_entrega_outra_peca(self):
+        jogo = Jogo.__new__(Jogo)
+        jogo._senha_cofre_digitada = "0042"
+        jogo.codigo_cofre_sala1 = "0042"
+        jogo.cofre_sala1_aberto = False
+        jogo.pecas = set()
+        jogo.canvas = Mock()
+        jogo.dialogo_var = Mock()
+        jogo._perto_do_quadro_sala1 = Mock(return_value=True)
+        jogo._desenhar_opcoes_cofre_sala1 = Mock()
+
+        jogo._confirmar_senha_cofre_sala1()
+
+        self.assertTrue(jogo.cofre_sala1_aberto)
+        self.assertIn(NOME_PECA_COFRE_SALA1, jogo.pecas)
+        self.assertEqual(jogo._estado, "mundo")
+        jogo._desenhar_opcoes_cofre_sala1.assert_called_once_with()
+
+    def test_senha_errada_nao_abre_cofre_nem_entrega_peca(self):
+        jogo = Jogo.__new__(Jogo)
+        jogo._senha_cofre_digitada = "1234"
+        jogo.codigo_cofre_sala1 = "0042"
+        jogo.cofre_sala1_aberto = False
+        jogo.pecas = set()
+        jogo.canvas = Mock()
+        jogo.dialogo_var = Mock()
+        jogo._desenhar_entrada_senha_cofre_sala1 = Mock()
+
+        jogo._confirmar_senha_cofre_sala1()
+
+        self.assertFalse(jogo.cofre_sala1_aberto)
+        self.assertEqual(jogo.pecas, set())
+        self.assertEqual(jogo._senha_cofre_digitada, "")
+        jogo._desenhar_entrada_senha_cofre_sala1.assert_called_once_with()
+
+    @patch("jogo.secrets.randbelow", side_effect=[0, 9_999])
+    def test_senha_aleatoria_tem_quatro_digitos_inclusive_zero(self, randbelow):
+        from jogo import _gerar_codigo_cofre_sala1
+
+        self.assertEqual(_gerar_codigo_cofre_sala1(), "0000")
+        self.assertEqual(_gerar_codigo_cofre_sala1(), "9999")
+        self.assertEqual(randbelow.call_args_list, [call(10_000), call(10_000)])
+
+
+class TestRolagemD20(unittest.TestCase):
+    @patch("combate.secrets.randbelow", side_effect=[0, 19])
+    def test_rolagem_usa_todos_os_limites_sem_viés(self, randbelow):
+        self.assertEqual(rolar_d20(), 1)
+        self.assertEqual(rolar_d20(), 20)
+        self.assertEqual(randbelow.call_args_list, [call(20), call(20)])
 
 
 class TestAnimacaoD20(unittest.TestCase):

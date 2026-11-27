@@ -63,7 +63,7 @@ def continuar_aventura():
             parent=janela,
         )
         abrir_menu()
-
+w
 
 def abrir_menu():
     ao_continuar = continuar_aventura if ARQUIVO_SAVE.is_file() else None

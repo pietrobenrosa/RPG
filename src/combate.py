@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-import random
+import secrets
 
 from models import Entidade
 
@@ -13,7 +13,7 @@ class ResultadoAtaque:
 
 
 def rolar_d20():
-    return random.randint(1, 20)
+    return secrets.randbelow(20) + 1
 
 
 def calcular_dano(ataque, defesa, dado):

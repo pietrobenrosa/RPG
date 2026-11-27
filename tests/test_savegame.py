@@ -7,7 +7,11 @@ from unittest.mock import Mock
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
-from jogo import Jogo, NOME_PECA_FOGUETE_SALA1, PISTA_COFRE_SALA1
+from jogo import (
+    Jogo,
+    NOME_PECA_COFRE_SALA1,
+    NOME_PECA_FOGUETE_SALA1,
+)
 from savegame import VERSAO_SAVE, carregar_jogo, salvar_jogo
 
 
@@ -119,6 +123,9 @@ class TestSaveGame(unittest.TestCase):
             "tv_sala1_ligada": True,
             "armarios_sala1_investigados": True,
             "armarios_sala1_arrombados": True,
+            "codigo_cofre_sala1": "0042",
+            "quadro_sala1_investigado": True,
+            "cofre_sala1_aberto": True,
             "xp": 0,
             "xp_proximo_nivel": 100,
             "pecas": [],
@@ -132,9 +139,46 @@ class TestSaveGame(unittest.TestCase):
         self.assertTrue(jogo.tv_sala1_ligada)
         self.assertTrue(jogo.armarios_sala1_investigados)
         self.assertTrue(jogo.armarios_sala1_arrombados)
-        self.assertEqual(jogo.inventario[PISTA_COFRE_SALA1], 1)
+        self.assertEqual(jogo.codigo_cofre_sala1, "0042")
+        self.assertTrue(jogo.quadro_sala1_investigado)
+        self.assertTrue(jogo.cofre_sala1_aberto)
+        self.assertEqual(jogo.inventario["Código do Cofre: 0042"], 1)
         self.assertIn(NOME_PECA_FOGUETE_SALA1, jogo.pecas)
+        self.assertIn(NOME_PECA_COFRE_SALA1, jogo.pecas)
         jogo._iniciar_mapa.assert_called_once_with()
+
+    def test_save_antigo_migra_a_pista_para_a_senha_aleatoria(self):
+        dados = {
+            "versao": VERSAO_SAVE,
+            "jogador": {
+                "nome": "Vance",
+                "classe": "Engenheiro",
+                "hp": 22,
+                "ataque": 6,
+                "defesa": 8,
+                "nivel": 1,
+            },
+            "sala_atual": "sala_1",
+            "posicao": [480, 430],
+            "direcao": "baixo",
+            "inventario": {"Código do Cofre: 4826": 1},
+            "itens_no_chao": [],
+            "armarios_sala1_investigados": True,
+            "xp": 0,
+            "xp_proximo_nivel": 100,
+            "pecas": [],
+            "ataque_extra": 0,
+        }
+        jogo = Jogo.__new__(Jogo)
+        jogo._iniciar_mapa = Mock()
+
+        jogo._restaurar_progresso(dados)
+
+        self.assertRegex(jogo.codigo_cofre_sala1, r"^\d{4}$")
+        self.assertEqual(
+            jogo.inventario,
+            {f"Código do Cofre: {jogo.codigo_cofre_sala1}": 1},
+        )
 
     def test_dados_salvos_incluem_progresso_da_porta_reforcada(self):
         jogo = Jogo.__new__(Jogo)
@@ -157,6 +201,9 @@ class TestSaveGame(unittest.TestCase):
         jogo.tv_sala1_ligada = True
         jogo.armarios_sala1_investigados = True
         jogo.armarios_sala1_arrombados = False
+        jogo.codigo_cofre_sala1 = "0073"
+        jogo.quadro_sala1_investigado = True
+        jogo.cofre_sala1_aberto = False
         jogo.xp = 0
         jogo.xp_proximo_nivel = 100
         jogo.pecas = set()
@@ -169,6 +216,9 @@ class TestSaveGame(unittest.TestCase):
         self.assertTrue(dados["tv_sala1_ligada"])
         self.assertTrue(dados["armarios_sala1_investigados"])
         self.assertFalse(dados["armarios_sala1_arrombados"])
+        self.assertEqual(dados["codigo_cofre_sala1"], "0073")
+        self.assertTrue(dados["quadro_sala1_investigado"])
+        self.assertFalse(dados["cofre_sala1_aberto"])
 
 
 if __name__ == "__main__":

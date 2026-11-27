@@ -18,7 +18,7 @@ Agora, cabe a você sabotar o núcleo da estação, enfrentar a IA corrompida e 
 
 ## ✨ Funcionalidades Principais
 
-* **Sistema de Combate D20 Animado:** Rolagem de dados em 2D na tela com animação de desaceleração, cálculo automático de modificadores de atributo, acertos críticos e falhas críticas.
+* **Sistema de Combate D20 Animado:** Resultado sorteado uniformemente entre 1 e 20, com rolagem em 2D na tela, animação de desaceleração, cálculo automático de modificadores de atributo, acertos críticos e falhas críticas.
 * **Três Classes Jogáveis:** Estilos de jogo distintos com atributos, habilidades exclusivas e formas próprias de gerenciar energia/mana.
 * **Gerenciamento de Recursos:** Sistema de turnos estratégico com menu de habilidades, uso de poções/estimulantes no inventário e controle de pontos de vida (HP) e energia arcana (MP).
 * **Save e Continuação:** Salve o progresso durante a partida e continue do mesmo personagem, sala, posição e inventário pelo menu.
@@ -70,8 +70,9 @@ o-despertar-do-eter/
 * No começo, o personagem aparece em frente à segunda câmara criogênica, da esquerda para a direita (a que tem a maca aberta).
 * No corredor, avance para cima para explorar até a parede do fundo; volte para baixo até a entrada para retornar à sala de hibernação.
 * O personagem se move 30% mais rápido que antes.
-* A **Chave Dourada** fica no canto da Sala 1. A porta 3 do corredor é reforçada: use a chave ou tente arrombá-la com um resultado **18+** no D20. O teste só pode ser feito uma vez; as opções aparecem perto da porta e somem ao se afastar. Use **ESC** na tela da sala 3 para voltar ao corredor.
-* Na Sala 1, aproxime-se da TV para ligá-la e ler a transmissão sobre as anomalias. A TV permanece ligada ao sair, voltar ou carregar o jogo. Perto dos armários, investigue a parte aberta com **D20 10+** para descobrir o código do cofre, ou tente arrombá-los com **D20 15+** para obter uma peça do foguete. A tentativa de arrombamento pode ser repetida; cada falha custa **2 HP**.
+* A **Chave Dourada** fica no canto da Sala 1. A porta 3 do corredor é reforçada: use a chave ou tente arrombá-la com um resultado **18+** no D20. O teste só pode ser feito uma vez; as opções aparecem perto da porta e somem ao se afastar. Abrir essa saída leva a um final em que o personagem é atacado pelas anomalias; use **ESC** para voltar ao menu.
+* Na Sala 1, aproxime-se da TV para ligá-la e ler uma transmissão de emergência em destaque. A TV permanece ligada ao sair, voltar ou carregar o jogo. Perto dos armários, investigue a parte aberta com **D20 10+** para descobrir a senha aleatória de quatro dígitos, ou tente arrombá-los com **D20 15+** para obter uma peça do foguete. A tentativa de arrombamento pode ser repetida; cada falha custa **2 HP**.
+* Aproxime-se do quadro para investigá-lo com **D20 10+**. O sucesso revela o cofre escondido; digite a senha encontrada nos armários e pressione **Enter** para abrir e receber outra peça do foguete. A senha é gerada a cada nova partida e preservada no save.
 * Falhas em testes com dificuldade **10 ou mais** causam dano: **1 HP** de 10 a 15, **2 HP** acima de 15 e **3 HP** a partir de 18. Arrombar os armários tem a penalidade específica de **2 HP** por falha.
 * Pressione **E** (ou clique em **MOCHILA [E]**) para abrir o inventário. Use as setas para selecionar, **Enter** para usar, **Delete** para jogar no chão e **ESC** para fechar. O kit médico e a chave dourada aparecem com seus ícones na mochila e no chão; itens no chão podem ser clicados para recolher.
 * A vida é mostrada no alto à esquerda; XP e nível ficam no alto à direita.

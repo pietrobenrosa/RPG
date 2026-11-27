@@ -2,22 +2,21 @@
   "versao": 1,
   "jogador": {
     "nome": "Vance",
-    "classe": "Engenheiro",
-    "hp": 34,
-    "ataque": 6,
-    "defesa": 8,
+    "classe": "Segurança",
+    "hp": 40,
+    "ataque": 9,
+    "defesa": 5,
     "nivel": 1
   },
   "sala_atual": "corredor",
   "posicao": [
-    305,
-    390
+    437.10000000000025,
+    430.0
   ],
   "direcao": "esquerda",
   "inventario": {
     "Kit Médico": 1,
-    "EMP": 1,
-    "Código do Cofre: 4826": 1
+    "Adrenalina": 1
   },
   "itens_no_chao": [
     {
@@ -29,13 +28,14 @@
   ],
   "porta3_tentativa_usada": false,
   "porta3_aberta": false,
-  "tv_sala1_ligada": true,
-  "armarios_sala1_investigados": true,
-  "armarios_sala1_arrombados": true,
+  "tv_sala1_ligada": false,
+  "armarios_sala1_investigados": false,
+  "armarios_sala1_arrombados": false,
+  "codigo_cofre_sala1": "6162",
+  "quadro_sala1_investigado": false,
+  "cofre_sala1_aberto": false,
   "xp": 0,
   "xp_proximo_nivel": 100,
-  "pecas": [
-    "Módulo de Energia"
-  ],
+  "pecas": [],
   "ataque_extra": 0
 }

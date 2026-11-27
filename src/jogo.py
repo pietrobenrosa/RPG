@@ -1,5 +1,6 @@
 import math
 from pathlib import Path
+import secrets
 import tkinter as tk
 from tkinter import messagebox
 
@@ -87,6 +88,12 @@ IMAGEM_SALA1_TV_LIGADA = (
     / "cenarios"
     / "Sala1_TV_LIGADA.png"
 )
+IMAGEM_COFRE_SALA1 = (
+    Path(__file__).resolve().parents[1]
+    / "assets"
+    / "cenarios"
+    / "Cofre.png"
+)
 AUDIO_PASSOS = Path(__file__).resolve().parents[1] / "assets" / "audios" / "passos.mp3"
 IMAGENS_ITENS = {
     "Kit Médico": Path(__file__).resolve().parents[1] / "assets" / "itens" / "kit_medico.png",
@@ -138,6 +145,8 @@ COLISOES = {
         (900, 350, 60, 60),
         (920, 410, 40, 60),
         (940, 470, 20, 70),
+        (144, 205, 74, 38),
+        (240, 205, 74, 38),
     ],
 }
 
@@ -179,14 +188,32 @@ ITEM_CHAVE_DOURADA = {
     "x": 850,
     "y": 470,
 }
-CODIGO_COFRE_SALA1 = "4826"
-PISTA_COFRE_SALA1 = f"Código do Cofre: {CODIGO_COFRE_SALA1}"
+PISTA_COFRE_SALA1 = "Código do Cofre"
 NOME_PECA_FOGUETE_SALA1 = "Módulo de Energia"
+NOME_PECA_COFRE_SALA1 = "Módulo de Propulsão"
 ZONA_TV_SALA1 = (395, 190, 565, 305)
 ZONAS_ARMARIOS_SALA1 = (
     (115, 205, 235, 315),
     (225, 205, 355, 315),
 )
+ZONA_QUADRO_SALA1 = (650, 200, 800, 300)
+POSICAO_COFRE_SALA1 = (720, 88)
+TEXTO_TRANSMISSAO_SALA1 = (
+    "Alerta de emergência: as anomalias romperam o perímetro da cidade e "
+    "as equipes de contenção perderam contato com vários bairros. "
+    "Evite as ruas e não tente atravessar as áreas isoladas.\n\n"
+    "Não saia de casa. Tranque portas e janelas, apague as luzes e mantenha "
+    "silêncio. Não abra a porta para vozes conhecidas vindas do lado de fora: "
+    "há relatos de criaturas que imitam pessoas desaparecidas.\n\n"
+    "A evacuação subterrânea foi transferida para o bunker. A última nave "
+    "de transporte seguirá para a estação orbital, onde ainda existe abrigo "
+    "e uma rota para deixar a Terra. Se você estiver ouvindo esta gravação, "
+    "procure a saída do bunker e siga para a estação. Boa sorte."
+)
+
+
+def _gerar_codigo_cofre_sala1():
+    return f"{secrets.randbelow(10_000):04d}"
 
 
 def _ponto_dentro(retangulo, x, y):
@@ -373,6 +400,9 @@ class Jogo:
         self.tv_sala1_ligada = False
         self.armarios_sala1_investigados = False
         self.armarios_sala1_arrombados = False
+        self.codigo_cofre_sala1 = _gerar_codigo_cofre_sala1()
+        self.quadro_sala1_investigado = False
+        self.cofre_sala1_aberto = False
         self.porta3_tentativa_usada = False
         self.porta3_aberta = False
         self.xp = 0
@@ -422,6 +452,12 @@ class Jogo:
                 "armarios_sala1_arrombados",
                 False,
             )
+            codigo_cofre_sala1 = dados.get("codigo_cofre_sala1")
+            quadro_sala1_investigado = dados.get(
+                "quadro_sala1_investigado",
+                False,
+            )
+            cofre_sala1_aberto = dados.get("cofre_sala1_aberto", False)
         except (KeyError, TypeError) as erro:
             raise ValueError("O arquivo de save está incompleto ou inválido.") from erro
 
@@ -437,9 +473,22 @@ class Jogo:
                 tv_sala1_ligada,
                 armarios_sala1_investigados,
                 armarios_sala1_arrombados,
+                quadro_sala1_investigado,
+                cofre_sala1_aberto,
             )
         ):
             raise ValueError("O estado da Sala 1 no save é inválido.")
+        if codigo_cofre_sala1 is None:
+            codigo_cofre_sala1 = _gerar_codigo_cofre_sala1()
+        elif (
+            not isinstance(codigo_cofre_sala1, str)
+            or len(codigo_cofre_sala1) != 4
+            or not codigo_cofre_sala1.isascii()
+            or not codigo_cofre_sala1.isdigit()
+        ):
+            raise ValueError("O código do cofre no save é inválido.")
+        if cofre_sala1_aberto and not quadro_sala1_investigado:
+            raise ValueError("O estado do cofre no save é inválido.")
         if (
             not isinstance(nome, str)
             or not nome.strip()
@@ -521,6 +570,9 @@ class Jogo:
         self.tv_sala1_ligada = tv_sala1_ligada
         self.armarios_sala1_investigados = armarios_sala1_investigados
         self.armarios_sala1_arrombados = armarios_sala1_arrombados
+        self.codigo_cofre_sala1 = codigo_cofre_sala1
+        self.quadro_sala1_investigado = quadro_sala1_investigado
+        self.cofre_sala1_aberto = cofre_sala1_aberto
         if (
             "tv_sala1_ligada" not in dados
             and "Chave Dourada" not in self.inventario
@@ -537,16 +589,20 @@ class Jogo:
                 self.itens_no_chao.append(ITEM_CHAVE_DOURADA.copy())
             else:
                 chave_no_chao.update(ITEM_CHAVE_DOURADA)
-        if (
-            self.armarios_sala1_investigados
-            and PISTA_COFRE_SALA1 not in self.inventario
-        ):
-            self.inventario[PISTA_COFRE_SALA1] = 1
+        for nome_item in tuple(self.inventario):
+            if nome_item == PISTA_COFRE_SALA1 or nome_item.startswith(
+                f"{PISTA_COFRE_SALA1}:"
+            ):
+                del self.inventario[nome_item]
+        if self.armarios_sala1_investigados:
+            self.inventario[self._nome_pista_cofre_sala1()] = 1
         self.xp = xp
         self.xp_proximo_nivel = xp_proximo_nivel
         self.pecas = set(pecas)
         if self.armarios_sala1_arrombados:
             self.pecas.add(NOME_PECA_FOGUETE_SALA1)
+        if self.cofre_sala1_aberto:
+            self.pecas.add(NOME_PECA_COFRE_SALA1)
         self.ataque_extra = ataque_extra
         self._estado = "mundo"
         if not self._posicao_valida(self.player_x, self.player_y):
@@ -574,6 +630,9 @@ class Jogo:
             "tv_sala1_ligada": self.tv_sala1_ligada,
             "armarios_sala1_investigados": self.armarios_sala1_investigados,
             "armarios_sala1_arrombados": self.armarios_sala1_arrombados,
+            "codigo_cofre_sala1": self.codigo_cofre_sala1,
+            "quadro_sala1_investigado": self.quadro_sala1_investigado,
+            "cofre_sala1_aberto": self.cofre_sala1_aberto,
             "xp": self.xp,
             "xp_proximo_nivel": self.xp_proximo_nivel,
             "pecas": sorted(self.pecas),
@@ -709,6 +768,10 @@ class Jogo:
         self._porta3_popup_visivel = False
         self._objeto_interativo_sala1 = None
         self._interacao_sala1_rolando = False
+        self._cofre_sala1_canvas = None
+        self._imagem_cofre_sala1_tk = None
+        self._tela_tv_sala1_aberta = False
+        self._senha_cofre_digitada = ""
         self.tela_porta = None
         self.audio_passos = AudioPassos(AUDIO_PASSOS)
         self._imagens_fundo = {
@@ -716,6 +779,7 @@ class Jogo:
             for sala, caminho in IMAGENS_SALAS.items()
         }
         self._imagem_tv_ligada = Image.open(IMAGEM_SALA1_TV_LIGADA).convert("RGBA")
+        self._imagem_cofre_sala1 = Image.open(IMAGEM_COFRE_SALA1).convert("RGBA")
         pasta_sprites = Path(__file__).resolve().parents[1] / "assets" / "personagem"
         self._sprites_originais = {
             direcao: tuple(
@@ -1187,6 +1251,9 @@ class Jogo:
         self._posicionar_dado_hud()
         if self._porta3_popup_visivel:
             self._desenhar_opcoes_porta3()
+        self._desenhar_cofre_sala1(escala_x, escala_y)
+        if self._tela_tv_sala1_aberta:
+            self._desenhar_transmissao_tv_sala1()
 
     def _desenhar_jogador(self):
         if not self._sprites_redimensionados:
@@ -1198,6 +1265,48 @@ class Jogo:
         self.canvas.coords(self.player, self.player_x * escala_x, self.player_y * escala_y)
         self.canvas.itemconfigure(self.player, image=imagem)
         self._imagem_jogador = imagem
+
+    def _desenhar_cofre_sala1(self, escala_x, escala_y):
+        if self.sala_atual != "sala_1" or not self.quadro_sala1_investigado:
+            if self._cofre_sala1_canvas is not None:
+                self.canvas.delete(self._cofre_sala1_canvas)
+                self._cofre_sala1_canvas = None
+            self._imagem_cofre_sala1_tk = None
+            return
+
+        tamanho = (
+            round(
+                self._imagem_cofre_sala1.width
+                * LARGURA_MUNDO
+                / self._imagens_fundo["sala_1"].width
+                * escala_x
+            ),
+            round(
+                self._imagem_cofre_sala1.height
+                * ALTURA_MUNDO
+                / self._imagens_fundo["sala_1"].height
+                * escala_y
+            ),
+        )
+        imagem = self._imagem_cofre_sala1.resize(
+            tamanho,
+            Image.Resampling.NEAREST,
+        )
+        self._imagem_cofre_sala1_tk = ImageTk.PhotoImage(imagem)
+        x, y = POSICAO_COFRE_SALA1
+        coordenadas = (x * escala_x, y * escala_y)
+        if self._cofre_sala1_canvas is None:
+            self._cofre_sala1_canvas = self.canvas.create_image(
+                *coordenadas,
+                image=self._imagem_cofre_sala1_tk,
+                tags=("cofre_sala1",),
+            )
+        else:
+            self.canvas.coords(self._cofre_sala1_canvas, *coordenadas)
+            self.canvas.itemconfigure(
+                self._cofre_sala1_canvas,
+                image=self._imagem_cofre_sala1_tk,
+            )
 
     def _posicao_valida(self, x, y):
         raio = RAIO_JOGADOR[self.sala_atual]
@@ -1220,9 +1329,25 @@ class Jogo:
         return True
 
     def _on_key(self, event):
+        tecla = event.keysym.lower()
+        if self._estado == "transmissao_tv":
+            if tecla in {"return", "escape"}:
+                self._fechar_transmissao_tv_sala1()
+            return "break"
+        if self._estado == "senha_cofre":
+            if tecla == "return":
+                self._confirmar_senha_cofre_sala1()
+            elif tecla == "escape":
+                self._fechar_entrada_senha_cofre_sala1()
+            elif tecla == "backspace":
+                self._senha_cofre_digitada = self._senha_cofre_digitada[:-1]
+                self._desenhar_entrada_senha_cofre_sala1()
+            elif event.char in "0123456789" and len(self._senha_cofre_digitada) < 4:
+                self._senha_cofre_digitada += event.char
+                self._desenhar_entrada_senha_cofre_sala1()
+            return "break"
         if self._estado != "mundo":
             return
-        tecla = event.keysym.lower()
         if tecla in TECLAS_MOVIMENTO:
             self.teclas_pressionadas.add(tecla)
         elif tecla == "r":
@@ -1234,7 +1359,14 @@ class Jogo:
         self.teclas_pressionadas.discard(event.keysym.lower())
 
     def _atualizar_movimento(self):
-        if self._estado in {"porta", "inventario", "teste_porta", "teste_interacao"}:
+        if self._estado in {
+            "porta",
+            "inventario",
+            "teste_porta",
+            "teste_interacao",
+            "transmissao_tv",
+            "senha_cofre",
+        }:
             self.container.after(20, self._atualizar_movimento)
             return
         if self._estado != "mundo":
@@ -1311,16 +1443,27 @@ class Jogo:
         if perto_da_tv and not self.tv_sala1_ligada:
             self._ligar_tv_sala1()
 
+        perto_do_quadro = self._perto_do_quadro_sala1()
         perto_dos_armarios = any(
             _ponto_dentro(zona, self.player_x, self.player_y)
             for zona in ZONAS_ARMARIOS_SALA1
         )
-        if perto_dos_armarios:
+        if perto_do_quadro:
+            if self._objeto_interativo_sala1 == "armarios":
+                self._remover_opcoes_armarios_sala1()
+            if self._objeto_interativo_sala1 != "cofre":
+                self._objeto_interativo_sala1 = "cofre"
+                self._desenhar_opcoes_cofre_sala1()
+        elif perto_dos_armarios:
+            if self._objeto_interativo_sala1 == "cofre":
+                self._remover_opcoes_cofre_sala1()
             if self._objeto_interativo_sala1 != "armarios":
                 self._objeto_interativo_sala1 = "armarios"
                 self._desenhar_opcoes_armarios_sala1()
         elif self._objeto_interativo_sala1 == "armarios":
             self._remover_opcoes_armarios_sala1()
+        elif self._objeto_interativo_sala1 == "cofre":
+            self._remover_opcoes_cofre_sala1()
 
     def _ligar_tv_sala1(self):
         if self.tv_sala1_ligada:
@@ -1328,11 +1471,280 @@ class Jogo:
         self.tv_sala1_ligada = True
         self._ultimo_tamanho = None
         self._redimensionar_cena()
-        self.dialogo_var.set(
-            "A transmissão revela que as anomalias dominaram a Terra. "
-            "A última esperança é alcançar a estação espacial em uma nave "
-            "e encontrar um lugar seguro para a humanidade."
+        self.dialogo_var.set("A TV exibe uma transmissão de emergência.")
+        self._mostrar_transmissao_tv_sala1()
+
+    def _mostrar_transmissao_tv_sala1(self):
+        self._estado = "transmissao_tv"
+        self.teclas_pressionadas.clear()
+        self.audio_passos.parar()
+        self._tela_tv_sala1_aberta = True
+        self._desenhar_transmissao_tv_sala1()
+        self.canvas.focus_set()
+
+    def _desenhar_transmissao_tv_sala1(self):
+        self.canvas.delete("tv_sala1_lore")
+        largura = self.canvas.winfo_width()
+        altura = self.canvas.winfo_height()
+        esquerda, topo = largura * 0.1, altura * 0.08
+        direita, base = largura * 0.9, altura * 0.92
+        self.canvas.create_rectangle(
+            esquerda,
+            topo,
+            direita,
+            base,
+            fill="#070C14",
+            outline=DESTAQUE,
+            width=3,
+            tags=("tv_sala1_lore",),
         )
+        self.canvas.create_text(
+            largura / 2,
+            topo + altura * 0.075,
+            text="TRANSMISSÃO DE EMERGÊNCIA  |  ARQUIVO 07",
+            fill="#FFE08A",
+            font=("Consolas", 17, "bold"),
+            tags=("tv_sala1_lore",),
+        )
+        self.canvas.create_text(
+            esquerda + largura * 0.045,
+            topo + altura * 0.15,
+            text=TEXTO_TRANSMISSAO_SALA1,
+            fill=TEXTO,
+            font=("Consolas", 12, "bold"),
+            justify="left",
+            anchor="nw",
+            width=direita - esquerda - largura * 0.09,
+            tags=("tv_sala1_lore",),
+        )
+        fechar = "PRESSIONE ENTER OU ESC PARA FECHAR"
+        self.canvas.create_text(
+            largura / 2,
+            base - altura * 0.055,
+            text=fechar,
+            fill=DESTAQUE,
+            font=("Consolas", 11, "bold"),
+            tags=("tv_sala1_lore", "tv_sala1_fechar"),
+        )
+        self.canvas.tag_bind(
+            "tv_sala1_fechar",
+            "<Button-1>",
+            lambda _event: self._fechar_transmissao_tv_sala1(),
+        )
+        self.canvas.tag_raise("tv_sala1_lore")
+
+    def _fechar_transmissao_tv_sala1(self):
+        self.canvas.delete("tv_sala1_lore")
+        self._tela_tv_sala1_aberta = False
+        self._estado = "mundo"
+        self.dialogo_var.set("A transmissão continua passando na TV.")
+        self.canvas.focus_set()
+
+    def _perto_do_quadro_sala1(self):
+        return (
+            self.sala_atual == "sala_1"
+            and _ponto_dentro(
+                ZONA_QUADRO_SALA1,
+                self.player_x,
+                self.player_y,
+            )
+        )
+
+    def _nome_pista_cofre_sala1(self):
+        return f"{PISTA_COFRE_SALA1}: {self.codigo_cofre_sala1}"
+
+    def _desenhar_opcoes_cofre_sala1(self):
+        if not self._perto_do_quadro_sala1():
+            return
+
+        self.canvas.delete("cofre_sala1_popup")
+        escala_x = self.canvas.winfo_width() / LARGURA_MUNDO
+        escala_y = self.canvas.winfo_height() / ALTURA_MUNDO
+        centro_x = 720 * escala_x
+        topo = 215 * escala_y
+        meia_largura = 175 * escala_x
+        altura = 128 * escala_y
+        self.canvas.create_rectangle(
+            centro_x - meia_largura,
+            topo,
+            centro_x + meia_largura,
+            topo + altura,
+            fill=FUNDO,
+            outline=DESTAQUE,
+            width=2,
+            tags=("cofre_sala1_popup",),
+        )
+        titulo = (
+            "COFRE ABERTO"
+            if self.cofre_sala1_aberto
+            else "COFRE ENCONTRADO"
+            if self.quadro_sala1_investigado
+            else "QUADRO NA PAREDE"
+        )
+        self.canvas.create_text(
+            centro_x,
+            topo + 16 * escala_y,
+            text=titulo,
+            fill=TEXTO,
+            font=("Consolas", 12, "bold"),
+            tags=("cofre_sala1_popup",),
+        )
+        opcoes = []
+        if not self.quadro_sala1_investigado:
+            opcoes.append(("investigar", "Investigar (D20 10+)", True))
+        elif not self.cofre_sala1_aberto:
+            opcoes.append(("senha", "Digitar senha", True))
+        else:
+            opcoes.append(("aberto", "O cofre está vazio", False))
+        opcoes.append(("desistir", "Desistir", True))
+        for indice, (acao, texto, habilitada) in enumerate(opcoes):
+            tag = f"cofre_sala1_{acao}"
+            self.canvas.create_text(
+                centro_x,
+                topo + (52 + indice * 32) * escala_y,
+                text=texto,
+                fill=DESTAQUE if habilitada else SUAVE,
+                font=("Consolas", 11, "bold"),
+                tags=("cofre_sala1_popup", tag),
+            )
+            if habilitada:
+                self.canvas.tag_bind(
+                    tag,
+                    "<Button-1>",
+                    lambda _event, escolha=acao: self._acao_cofre_sala1(escolha),
+                )
+                self.canvas.tag_bind(
+                    tag,
+                    "<Enter>",
+                    lambda _event: self.canvas.configure(cursor="hand2"),
+                )
+                self.canvas.tag_bind(
+                    tag,
+                    "<Leave>",
+                    lambda _event: self.canvas.configure(cursor=""),
+                )
+        self.canvas.tag_raise("cofre_sala1_popup")
+
+    def _remover_opcoes_cofre_sala1(self):
+        self.canvas.delete("cofre_sala1_popup")
+        self.canvas.configure(cursor="")
+        self._objeto_interativo_sala1 = None
+
+    def _acao_cofre_sala1(self, acao):
+        if self._estado != "mundo" or not self._perto_do_quadro_sala1():
+            return
+        if acao == "desistir":
+            self._remover_opcoes_cofre_sala1()
+            self.canvas.focus_set()
+        elif acao == "investigar" and not self.quadro_sala1_investigado:
+            self._remover_opcoes_cofre_sala1()
+            self._iniciar_teste_interacao(
+                10,
+                "INVESTIGAR QUADRO",
+                lambda sucesso, _resultado: self._resultado_investigacao_quadro_sala1(
+                    sucesso
+                ),
+            )
+        elif (
+            acao == "senha"
+            and self.quadro_sala1_investigado
+            and not self.cofre_sala1_aberto
+        ):
+            self._abrir_entrada_senha_cofre_sala1()
+
+    def _resultado_investigacao_quadro_sala1(self, sucesso):
+        if sucesso:
+            self.quadro_sala1_investigado = True
+            self._ultimo_tamanho = None
+            self._redimensionar_cena()
+            self.dialogo_var.set("Atrás do quadro, você encontrou um cofre.")
+        else:
+            self.dialogo_var.set("Você não encontrou nada atrás do quadro.")
+        if self._perto_do_quadro_sala1():
+            self._objeto_interativo_sala1 = "cofre"
+            self._desenhar_opcoes_cofre_sala1()
+
+    def _abrir_entrada_senha_cofre_sala1(self):
+        if not self.quadro_sala1_investigado or self.cofre_sala1_aberto:
+            return
+        self.canvas.delete("cofre_sala1_popup")
+        self._estado = "senha_cofre"
+        self._senha_cofre_digitada = ""
+        self.teclas_pressionadas.clear()
+        self.audio_passos.parar()
+        self._desenhar_entrada_senha_cofre_sala1()
+        self.canvas.focus_set()
+
+    def _desenhar_entrada_senha_cofre_sala1(self):
+        self.canvas.delete("cofre_senha_sala1_popup")
+        largura = self.canvas.winfo_width()
+        altura = self.canvas.winfo_height()
+        esquerda, direita = largura * 0.27, largura * 0.73
+        topo, base = altura * 0.31, altura * 0.69
+        self.canvas.create_rectangle(
+            esquerda,
+            topo,
+            direita,
+            base,
+            fill=FUNDO,
+            outline=DESTAQUE,
+            width=3,
+            tags=("cofre_senha_sala1_popup",),
+        )
+        self.canvas.create_text(
+            largura / 2,
+            topo + altura * 0.07,
+            text="COFRE — DIGITE A SENHA DE 4 DÍGITOS",
+            fill=TEXTO,
+            font=("Consolas", 14, "bold"),
+            tags=("cofre_senha_sala1_popup",),
+        )
+        senha_visivel = self._senha_cofre_digitada.ljust(4, "_")
+        self.canvas.create_text(
+            largura / 2,
+            altura / 2,
+            text="  ".join(senha_visivel),
+            fill="#FFE08A",
+            font=("Consolas", 26, "bold"),
+            tags=("cofre_senha_sala1_popup",),
+        )
+        self.canvas.create_text(
+            largura / 2,
+            base - altura * 0.065,
+            text="ENTER: confirmar     BACKSPACE: apagar     ESC: cancelar",
+            fill=DESTAQUE,
+            font=("Consolas", 10, "bold"),
+            tags=("cofre_senha_sala1_popup",),
+        )
+        self.canvas.tag_raise("cofre_senha_sala1_popup")
+
+    def _confirmar_senha_cofre_sala1(self):
+        if len(self._senha_cofre_digitada) != 4:
+            self.dialogo_var.set("Digite os quatro números da senha.")
+            return
+        if self._senha_cofre_digitada != self.codigo_cofre_sala1:
+            self._senha_cofre_digitada = ""
+            self.dialogo_var.set("Senha incorreta. Tente novamente.")
+            self._desenhar_entrada_senha_cofre_sala1()
+            return
+
+        self.cofre_sala1_aberto = True
+        self.pecas.add(NOME_PECA_COFRE_SALA1)
+        self._fechar_entrada_senha_cofre_sala1()
+        self.dialogo_var.set(
+            f"Senha correta! Você encontrou {NOME_PECA_COFRE_SALA1}."
+        )
+
+    def _fechar_entrada_senha_cofre_sala1(self):
+        self.canvas.delete("cofre_senha_sala1_popup")
+        self._estado = "mundo"
+        self._senha_cofre_digitada = ""
+        self.canvas.focus_set()
+        if self._perto_do_quadro_sala1():
+            self._objeto_interativo_sala1 = "cofre"
+            self._desenhar_opcoes_cofre_sala1()
+        else:
+            self._objeto_interativo_sala1 = None
 
     def _perto_dos_armarios_sala1(self):
         return (
@@ -1451,10 +1863,10 @@ class Jogo:
     def _resultado_investigacao_armarios(self, sucesso):
         if sucesso:
             self.armarios_sala1_investigados = True
-            self.inventario[PISTA_COFRE_SALA1] = 1
+            self.inventario[self._nome_pista_cofre_sala1()] = 1
             self.dialogo_var.set(
                 f"Você encontrou uma anotação: o código do cofre é "
-                f"{CODIGO_COFRE_SALA1}. O código foi guardado no inventário."
+                f"{self.codigo_cofre_sala1}. O código foi guardado no inventário."
             )
         else:
             self.dialogo_var.set("Você não conseguiu decifrar a anotação.")
@@ -1726,7 +2138,10 @@ class Jogo:
 
         self._estado = "mundo"
         ao_resolver(sucesso, resultado)
-        self.canvas.focus_set()
+        if self._estado == "mundo":
+            self.canvas.focus_set()
+        elif getattr(self, "tela_porta", None) is not None:
+            self.tela_porta.focus_set()
 
     def _iniciar_teste_porta3(self):
         if (
@@ -1757,27 +2172,69 @@ class Jogo:
     def _abrir_porta(self, numero):
         if numero == 3:
             self.porta3_aberta = True
-            texto = "Você entrou na sala 3"
+            texto = (
+                "A porta reforçada dava para o exterior. Ao atravessá-la, "
+                "uma horda de anomalias cercou você antes que pudesse voltar."
+            )
+            titulo = "VOCÊ MORREU"
+            self._estado = "morte"
         else:
             texto = f"Você entrou na porta {numero}"
-        self._estado = "porta"
+            titulo = texto.upper()
+            self._estado = "porta"
         self.teclas_pressionadas.clear()
         self.audio_passos.parar()
         self._remover_opcoes_porta3()
 
         self.tela_porta = tk.Frame(self.container, bg="black", takefocus=True)
         self.tela_porta.place(relx=0, rely=0, relwidth=1, relheight=1)
-        tk.Label(
-            self.tela_porta,
-            text=f"{texto}\n\nPressione ESC para voltar ao corredor",
-            fg="white",
-            bg="black",
-            font=("Consolas", 24, "bold"),
-            justify="center",
-        ).pack(expand=True)
-        self.tela_porta.bind("<KeyPress-Escape>", self._fechar_porta)
+        if numero == 3:
+            tk.Label(
+                self.tela_porta,
+                text=titulo,
+                fg="#FF5C69",
+                bg="black",
+                font=("Consolas", 34, "bold"),
+            ).pack(pady=(150, 24))
+            tk.Label(
+                self.tela_porta,
+                text=texto,
+                fg="white",
+                bg="black",
+                font=("Consolas", 17),
+                justify="center",
+                wraplength=800,
+            ).pack(padx=40, pady=12)
+            tk.Button(
+                self.tela_porta,
+                text="VOLTAR AO MENU",
+                command=self._voltar_ao_menu_apos_morte,
+                fg="#090D16",
+                bg=DESTAQUE,
+                font=("Consolas", 13, "bold"),
+                padx=20,
+                pady=8,
+            ).pack(pady=32)
+            self.tela_porta.bind(
+                "<KeyPress-Escape>",
+                self._voltar_ao_menu_apos_morte,
+            )
+        else:
+            tk.Label(
+                self.tela_porta,
+                text=f"{texto}\n\nPressione ESC para voltar ao corredor",
+                fg="white",
+                bg="black",
+                font=("Consolas", 24, "bold"),
+                justify="center",
+            ).pack(expand=True)
+            self.tela_porta.bind("<KeyPress-Escape>", self._fechar_porta)
         self.tela_porta.lift()
         self.tela_porta.focus_set()
+
+    def _voltar_ao_menu_apos_morte(self, event=None):
+        self.ao_menu()
+        return "break"
 
     def _fechar_porta(self, event=None):
         self.tela_porta.destroy()
