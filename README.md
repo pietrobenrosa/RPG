@@ -66,11 +66,13 @@ o-despertar-do-eter/
 ## 🕹️ Salas, movimento e D20
 
 * Use **WASD** ou as **setas** para andar. O personagem anima na direção do movimento.
-* Atravesse a porta da sala de hibernação para entrar no corredor. As portas 1, 2 e 4 mostram uma tela de identificação.
+* Atravesse a porta da sala de hibernação para entrar no corredor. A porta 1 leva à Sala 1; as portas 2 e 4 mostram uma tela de identificação.
 * No começo, o personagem aparece em frente à segunda câmara criogênica, da esquerda para a direita (a que tem a maca aberta).
 * No corredor, avance para cima para explorar até a parede do fundo; volte para baixo até a entrada para retornar à sala de hibernação.
 * O personagem se move 30% mais rápido que antes.
-* A porta 3 é reforçada: pegue a **Chave Dourada** no chão da sala de hibernação para abri-la ou tente arrombá-la com um resultado **18+** no D20. O teste só pode ser feito uma vez; as opções aparecem perto da porta e somem ao se afastar. Use **ESC** na tela da sala 3 para voltar ao corredor.
+* A **Chave Dourada** fica no canto da Sala 1. A porta 3 do corredor é reforçada: use a chave ou tente arrombá-la com um resultado **18+** no D20. O teste só pode ser feito uma vez; as opções aparecem perto da porta e somem ao se afastar. Use **ESC** na tela da sala 3 para voltar ao corredor.
+* Na Sala 1, aproxime-se da TV para ligá-la e ler a transmissão sobre as anomalias. A TV permanece ligada ao sair, voltar ou carregar o jogo. Perto dos armários, investigue a parte aberta com **D20 10+** para descobrir o código do cofre, ou tente arrombá-los com **D20 15+** para obter uma peça do foguete. A tentativa de arrombamento pode ser repetida; cada falha custa **2 HP**.
+* Falhas em testes com dificuldade **10 ou mais** causam dano: **1 HP** de 10 a 15, **2 HP** acima de 15 e **3 HP** a partir de 18. Arrombar os armários tem a penalidade específica de **2 HP** por falha.
 * Pressione **E** (ou clique em **MOCHILA [E]**) para abrir o inventário. Use as setas para selecionar, **Enter** para usar, **Delete** para jogar no chão e **ESC** para fechar. O kit médico e a chave dourada aparecem com seus ícones na mochila e no chão; itens no chão podem ser clicados para recolher.
 * A vida é mostrada no alto à esquerda; XP e nível ficam no alto à direita.
 * Na barra superior, **SALVAR** grava o progresso em `dados/savegame.json`, **MENU** salva e volta ao menu e **SAIR** pergunta se deseja salvar antes de fechar. Se houver save, o menu mostra **CONTINUAR JOGO**.
@@ -82,29 +84,29 @@ o-despertar-do-eter/
 
 ### Ajustar colisões
 
-No início de [`src/jogo.py`](src/jogo.py), edite `COLISOES`. Cada bloco é uma tupla `(x, y, largura, altura)`:
+No início de [`src/jogo.py`](src/jogo.py), edite `COLISOES`. Cada bloco é uma tupla `(x, y, largura, altura)`. Para mudar as paredes da Sala 1, edite somente a lista `"sala_1"`:
 
 ```python
-"sala_hibernacao": [
+"sala_1": [
     (38, 215, 100, 165),  # bloco de colisão de exemplo
 ],
 ```
 
-Mude os quatro números para mover ou redimensionar o bloco; acrescente outra tupla para bloquear uma nova área. As coordenadas são relativas à imagem da sala, não ao tamanho atual da janela.
+Mude os quatro números para mover ou redimensionar o bloco; acrescente outra tupla para bloquear uma nova área. As coordenadas são relativas à imagem da sala, não ao tamanho atual da janela. A personagem não poderá atravessar os retângulos.
 
 ### Ajustar a passagem entre salas
 
-No mesmo arquivo, edite `ZONAS_TELEPORTE`. Cada `retangulo` define a área que o personagem precisa atravessar; `destino` escolhe a próxima sala e `spawn` define onde ele aparece nela:
+No mesmo arquivo, edite `ZONAS_TELEPORTE`. Cada `retangulo` define a área que o personagem precisa atravessar; `destino` escolhe a próxima sala e `spawn` define onde ele aparece nela. Para ajustar a saída da Sala 1 pelo feixe no chão, altere apenas o item da lista `"sala_1"`:
 
 ```python
 {
-    "retangulo": (620, 185, 155, 60),
+    "retangulo": (390, 475, 180, 65),
     "destino": "corredor",
-    "spawn": (480, 470),
+    "spawn": (350, 450),
 },
 ```
 
-Para mudar a porta, ajuste `(x, y, largura, altura)` em `retangulo`. Para criar uma nova saída, adicione outro bloco à lista da sala e informe a sala de destino e a posição de chegada.
+Para mudar a saída, ajuste `(x, y, largura, altura)` em `retangulo`. Para alterar onde o jogador aparece no corredor, mude `spawn`. Para criar uma nova saída, adicione outro bloco à lista da sala e informe a sala de destino e a posição de chegada.
 
 ---
 

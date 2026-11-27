@@ -7,7 +7,7 @@ from unittest.mock import Mock
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
-from jogo import Jogo
+from jogo import Jogo, NOME_PECA_FOGUETE_SALA1, PISTA_COFRE_SALA1
 from savegame import VERSAO_SAVE, carregar_jogo, salvar_jogo
 
 
@@ -88,11 +88,52 @@ class TestSaveGame(unittest.TestCase):
         self.assertFalse(jogo.porta3_tentativa_usada)
         self.assertFalse(jogo.porta3_aberta)
         self.assertIn(
-            {"nome": "Chave Dourada", "sala": "sala_hibernacao", "x": 500, "y": 430},
+            {"nome": "Chave Dourada", "sala": "sala_1", "x": 850, "y": 470},
             jogo.itens_no_chao,
         )
+        self.assertFalse(jogo.tv_sala1_ligada)
+        self.assertFalse(jogo.armarios_sala1_investigados)
+        self.assertFalse(jogo.armarios_sala1_arrombados)
         self.assertEqual(jogo.xp, 20)
         self.assertEqual(jogo.pecas, {"Módulo de Energia"})
+        jogo._iniciar_mapa.assert_called_once_with()
+
+    def test_restaurar_progresso_preserva_tv_e_recompensas_da_sala1(self):
+        dados = {
+            "versao": VERSAO_SAVE,
+            "jogador": {
+                "nome": "Vance",
+                "classe": "Engenheiro",
+                "hp": 22,
+                "ataque": 6,
+                "defesa": 8,
+                "nivel": 1,
+            },
+            "sala_atual": "sala_1",
+            "posicao": [480, 430],
+            "direcao": "baixo",
+            "inventario": {},
+            "itens_no_chao": [],
+            "porta3_tentativa_usada": False,
+            "porta3_aberta": False,
+            "tv_sala1_ligada": True,
+            "armarios_sala1_investigados": True,
+            "armarios_sala1_arrombados": True,
+            "xp": 0,
+            "xp_proximo_nivel": 100,
+            "pecas": [],
+            "ataque_extra": 0,
+        }
+        jogo = Jogo.__new__(Jogo)
+        jogo._iniciar_mapa = Mock()
+
+        jogo._restaurar_progresso(dados)
+
+        self.assertTrue(jogo.tv_sala1_ligada)
+        self.assertTrue(jogo.armarios_sala1_investigados)
+        self.assertTrue(jogo.armarios_sala1_arrombados)
+        self.assertEqual(jogo.inventario[PISTA_COFRE_SALA1], 1)
+        self.assertIn(NOME_PECA_FOGUETE_SALA1, jogo.pecas)
         jogo._iniciar_mapa.assert_called_once_with()
 
     def test_dados_salvos_incluem_progresso_da_porta_reforcada(self):
@@ -113,6 +154,9 @@ class TestSaveGame(unittest.TestCase):
         jogo.itens_no_chao = []
         jogo.porta3_tentativa_usada = True
         jogo.porta3_aberta = False
+        jogo.tv_sala1_ligada = True
+        jogo.armarios_sala1_investigados = True
+        jogo.armarios_sala1_arrombados = False
         jogo.xp = 0
         jogo.xp_proximo_nivel = 100
         jogo.pecas = set()
@@ -122,6 +166,9 @@ class TestSaveGame(unittest.TestCase):
 
         self.assertTrue(dados["porta3_tentativa_usada"])
         self.assertFalse(dados["porta3_aberta"])
+        self.assertTrue(dados["tv_sala1_ligada"])
+        self.assertTrue(dados["armarios_sala1_investigados"])
+        self.assertFalse(dados["armarios_sala1_arrombados"])
 
 
 if __name__ == "__main__":

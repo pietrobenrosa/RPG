@@ -8,22 +8,34 @@
     "defesa": 8,
     "nivel": 1
   },
-  "sala_atual": "sala_hibernacao",
+  "sala_atual": "corredor",
   "posicao": [
-    658.6342533005865,
-    500.2657466994115
+    305,
+    390
   ],
-  "direcao": "baixo",
+  "direcao": "esquerda",
   "inventario": {
-    "Chave Dourada": 1,
+    "Kit Médico": 1,
     "EMP": 1,
-    "Kit Médico": 1
+    "Código do Cofre: 4826": 1
   },
-  "itens_no_chao": [],
-  "porta3_tentativa_usada": true,
+  "itens_no_chao": [
+    {
+      "nome": "Chave Dourada",
+      "sala": "sala_1",
+      "x": 850,
+      "y": 470
+    }
+  ],
+  "porta3_tentativa_usada": false,
   "porta3_aberta": false,
+  "tv_sala1_ligada": true,
+  "armarios_sala1_investigados": true,
+  "armarios_sala1_arrombados": true,
   "xp": 0,
   "xp_proximo_nivel": 100,
-  "pecas": [],
+  "pecas": [
+    "Módulo de Energia"
+  ],
   "ataque_extra": 0
 }

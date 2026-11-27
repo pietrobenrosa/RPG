@@ -13,13 +13,19 @@ from dice_anim import AnimadorD20
 from audio import AudioPassos
 from jogo import (
     INVENTARIOS_INICIAIS,
+    IMAGENS_SALAS,
+    IMAGEM_SALA1_TV_LIGADA,
     ITEM_CHAVE_DOURADA,
     ITENS_USAVEIS,
     Jogo,
+    NOME_PECA_FOGUETE_SALA1,
     PORTAS_CORREDOR,
+    PISTA_COFRE_SALA1,
     SPAWN_INICIAL,
     TAMANHO_PERSONAGEM,
     VELOCIDADE_JOGADOR,
+    ZONA_TV_SALA1,
+    ZONAS_ARMARIOS_SALA1,
     _ampliar_desenho_icone,
     _numero_finito,
 )
@@ -70,6 +76,16 @@ class TestMovimentoESalas(unittest.TestCase):
         self.assertTrue(jogo._posicao_valida(574, 250))
         self.assertFalse(jogo._posicao_valida(575, 250))
         self.assertTrue(jogo._posicao_valida(670, 450))
+
+    def test_sala1_bloqueia_paredes_mas_permita_chave_armarios_e_saida(self):
+        jogo = Jogo.__new__(Jogo)
+        jogo.sala_atual = "sala_1"
+
+        self.assertTrue(jogo._posicao_valida(480, 430))
+        self.assertTrue(jogo._posicao_valida(ITEM_CHAVE_DOURADA["x"], ITEM_CHAVE_DOURADA["y"]))
+        self.assertTrue(jogo._posicao_valida(480, 500))
+        self.assertFalse(jogo._posicao_valida(480, 200))
+        self.assertFalse(jogo._posicao_valida(100, 300))
 
     def test_personagem_fica_duas_vezes_maior_no_corredor(self):
         self.assertEqual(TAMANHO_PERSONAGEM["corredor"], 2 * TAMANHO_PERSONAGEM["sala_hibernacao"])
@@ -132,6 +148,7 @@ class TestMovimentoESalas(unittest.TestCase):
         jogo.sala_atual = "corredor"
         jogo._porta_ocupada = None
         jogo._abrir_porta = Mock()
+        jogo._carregar_sala = Mock()
         jogo._desenhar_opcoes_porta3 = Mock()
         jogo.porta3_aberta = False
 
@@ -139,14 +156,62 @@ class TestMovimentoESalas(unittest.TestCase):
             jogo.player_x, jogo.player_y = posicoes[porta["numero"]]
             self.assertTrue(jogo._posicao_valida(jogo.player_x, jogo.player_y))
             jogo._verificar_porta_corredor()
-            if porta["numero"] == 3:
+            if porta["numero"] == 1:
+                jogo._carregar_sala.assert_called_once_with("sala_1", (480, 430))
+                jogo._abrir_porta.assert_not_called()
+            elif porta["numero"] == 3:
                 jogo._abrir_porta.assert_not_called()
                 jogo._desenhar_opcoes_porta3.assert_called_once_with()
             else:
                 jogo._abrir_porta.assert_called_with(porta["numero"])
             jogo._porta_ocupada = None
             jogo._abrir_porta.reset_mock()
+            jogo._carregar_sala.reset_mock()
             jogo._desenhar_opcoes_porta3.reset_mock()
+
+    def test_saida_da_sala1_leva_de_volta_ao_corredor(self):
+        jogo = Jogo.__new__(Jogo)
+        jogo.sala_atual = "sala_1"
+        jogo.player_x, jogo.player_y = (480, 500)
+        jogo._carregar_sala = Mock()
+        jogo._verificar_interacoes_sala1 = Mock()
+
+        jogo._verificar_teleporte()
+
+        jogo._carregar_sala.assert_called_once_with("corredor", (350, 450))
+        jogo._verificar_interacoes_sala1.assert_not_called()
+
+    def test_spawn_de_retorno_ao_corredor_e_livre_e_reinicia_o_controle(self):
+        jogo = Jogo.__new__(Jogo)
+        jogo.sala_atual = "sala_1"
+        jogo._estado = "mundo"
+        jogo._objeto_interativo_sala1 = None
+        jogo._porta_ocupada = {"numero": 1}
+        jogo.audio_passos = Mock()
+        jogo.direcao = "cima"
+        jogo._quadro_animacao = 1
+        jogo._tempo_animacao = 3
+        jogo.teclas_pressionadas = {"w"}
+        jogo.dialogo_var = Mock()
+        jogo._atualizar_nome_sala = Mock()
+        jogo._redimensionar_cena = Mock()
+        jogo.canvas = Mock()
+
+        jogo._carregar_sala("corredor", (350, 450))
+
+        self.assertEqual(jogo._estado, "mundo")
+        self.assertIsNone(jogo._porta_ocupada)
+        self.assertEqual(jogo.teclas_pressionadas, set())
+        self.assertEqual((jogo.player_x, jogo.player_y), (350, 450))
+        self.assertTrue(jogo._posicao_valida(350, 450))
+        self.assertTrue(jogo._posicao_valida(350, 446))
+        self.assertTrue(jogo._posicao_valida(350, 454))
+        jogo.canvas.focus_set.assert_called_once_with()
+
+    def test_chave_dourada_esta_na_sala1_no_canto(self):
+        self.assertEqual(ITEM_CHAVE_DOURADA["sala"], "sala_1")
+        self.assertGreater(ITEM_CHAVE_DOURADA["x"], 800)
+        self.assertGreater(ITEM_CHAVE_DOURADA["y"], 400)
 
     def test_sair_da_area_da_porta3_remove_as_opcoes(self):
         jogo = Jogo.__new__(Jogo)
@@ -196,51 +261,84 @@ class TestMovimentoESalas(unittest.TestCase):
         jogo._iniciar_teste_porta3()
 
         self.assertTrue(jogo.porta3_tentativa_usada)
-        self.assertEqual(jogo._estado, "teste_porta")
+        self.assertEqual(jogo._estado, "teste_interacao")
         jogo.animador_d20_grande.rolar_teste.assert_called_once()
 
     def test_arrombamento_so_abre_com_resultado_18_ou_maior(self):
         jogo = Jogo.__new__(Jogo)
-        jogo._estado = "teste_porta"
+        jogo._estado = "teste_interacao"
         jogo.porta3_aberta = False
+        jogo.jogador = Mock(hp=30)
         jogo.d20_rolagem_imagem = 1
         jogo.d20_rolagem_texto = 2
         jogo.d20_rolagem_titulo = 3
         jogo.canvas = Mock()
         jogo.dialogo_var = Mock()
+        jogo._ocultar_dado_rolagem = Mock()
+        jogo._atualizar_hud = Mock()
         jogo._jogador_perto_da_porta3 = Mock(return_value=True)
         jogo._desenhar_opcoes_porta3 = Mock()
         jogo._abrir_porta = Mock()
 
-        jogo._finalizar_teste_porta3(17)
+        jogo._finalizar_teste_interacao(
+            17,
+            18,
+            "ARROMBAR PORTA REFORÇADA",
+            jogo._resultado_arrombamento_porta3,
+            None,
+        )
 
         self.assertFalse(jogo.porta3_aberta)
         self.assertEqual(jogo._estado, "mundo")
+        self.assertEqual(jogo.jogador.hp, 27)
+        jogo._atualizar_hud.assert_called_once_with()
         jogo._abrir_porta.assert_not_called()
         jogo._desenhar_opcoes_porta3.assert_called_once_with()
 
-        jogo._estado = "teste_porta"
-        jogo._finalizar_teste_porta3(18)
+        jogo._estado = "teste_interacao"
+        jogo._finalizar_teste_interacao(
+            18,
+            18,
+            "ARROMBAR PORTA REFORÇADA",
+            jogo._resultado_arrombamento_porta3,
+            None,
+        )
 
         self.assertTrue(jogo.porta3_aberta)
+        self.assertEqual(jogo.jogador.hp, 27)
         jogo._abrir_porta.assert_called_once_with(3)
 
     def test_resultado_do_d20_fica_visivel_por_tres_segundos(self):
         jogo = Jogo.__new__(Jogo)
-        jogo._estado = "teste_porta"
+        jogo._estado = "teste_interacao"
         jogo.animador_d20 = Mock()
         jogo.dialogo_var = Mock()
         jogo.container = Mock()
-        jogo._finalizar_teste_porta3 = Mock()
+        jogo._finalizar_teste_interacao = Mock()
+        callback_resolver = Mock()
 
-        jogo._resultado_teste_porta3(18)
+        jogo._resultado_teste_interacao(
+            18,
+            18,
+            "ARROMBAR PORTA REFORÇADA",
+            callback_resolver,
+            None,
+        )
 
         jogo.animador_d20.mostrar.assert_called_once_with(18)
-        jogo.dialogo_var.set.assert_called_once_with("D20: 18 — precisa de 18+.")
-        atraso, callback = jogo.container.after.call_args.args
+        jogo.dialogo_var.set.assert_called_once_with(
+            "ARROMBAR PORTA REFORÇADA: D20 18; precisa de 18+."
+        )
+        atraso, callback_agendado = jogo.container.after.call_args.args
         self.assertEqual(atraso, 3000)
-        callback()
-        jogo._finalizar_teste_porta3.assert_called_once_with(18)
+        callback_agendado()
+        jogo._finalizar_teste_interacao.assert_called_once_with(
+            18,
+            18,
+            "ARROMBAR PORTA REFORÇADA",
+            callback_resolver,
+            None,
+        )
 
 
 class TestAudioPassos(unittest.TestCase):
@@ -436,6 +534,119 @@ class TestInventario(unittest.TestCase):
         jogo.inventario_feedback.configure.assert_called_once_with(
             text="Inventário vazio."
         )
+
+
+class TestInteracoesSala1(unittest.TestCase):
+    def test_tv_liga_uma_vez_e_exibe_a_lore(self):
+        jogo = Jogo.__new__(Jogo)
+        jogo.tv_sala1_ligada = False
+        jogo._redimensionar_cena = Mock()
+        jogo.dialogo_var = Mock()
+
+        jogo._ligar_tv_sala1()
+        jogo._ligar_tv_sala1()
+
+        self.assertTrue(jogo.tv_sala1_ligada)
+        jogo._redimensionar_cena.assert_called_once_with()
+        lore = jogo.dialogo_var.set.call_args.args[0]
+        self.assertIn("anomalias dominaram a Terra", lore)
+        self.assertIn("estação espacial", lore)
+
+    def test_zonas_de_tv_armarios_e_sala_estao_definidas(self):
+        self.assertEqual(len(ZONA_TV_SALA1), 4)
+        self.assertEqual(len(ZONAS_ARMARIOS_SALA1), 2)
+
+    def test_sala1_usa_imagem_desligada_ao_chegar_e_asset_ligado_ao_interagir(self):
+        self.assertEqual(IMAGENS_SALAS["sala_1"].name, "Sala1.png")
+        self.assertEqual(IMAGEM_SALA1_TV_LIGADA.name, "Sala1_TV_LIGADA.png")
+        self.assertTrue(IMAGENS_SALAS["sala_1"].is_file())
+        self.assertTrue(IMAGEM_SALA1_TV_LIGADA.is_file())
+
+    def test_dano_por_falha_segue_a_dificuldade(self):
+        self.assertEqual(Jogo._dano_por_falha_teste(10), 1)
+        self.assertEqual(Jogo._dano_por_falha_teste(11), 1)
+        self.assertEqual(Jogo._dano_por_falha_teste(15), 1)
+        self.assertEqual(Jogo._dano_por_falha_teste(16), 2)
+        self.assertEqual(Jogo._dano_por_falha_teste(18), 3)
+
+    def test_interacao_de_arrombar_armarios_define_dificuldade_e_dano(self):
+        jogo = Jogo.__new__(Jogo)
+        jogo._estado = "mundo"
+        jogo._perto_dos_armarios_sala1 = Mock(return_value=True)
+        jogo.armarios_sala1_investigados = False
+        jogo.armarios_sala1_arrombados = False
+        jogo._remover_opcoes_armarios_sala1 = Mock()
+        jogo._iniciar_teste_interacao = Mock()
+
+        jogo._acao_armarios_sala1("arrombar")
+        jogo._acao_armarios_sala1("arrombar")
+
+        self.assertEqual(jogo._iniciar_teste_interacao.call_count, 2)
+        chamada = jogo._iniciar_teste_interacao.call_args_list[0]
+        self.assertEqual(chamada.args[:2], (15, "ARROMBAR ARMÁRIOS"))
+        self.assertTrue(callable(chamada.args[2]))
+        self.assertEqual(chamada.kwargs, {"dano_falha": 2})
+
+    def test_falha_ao_arrombar_armarios_custa_dois_hp(self):
+        jogo = Jogo.__new__(Jogo)
+        jogo._estado = "teste_interacao"
+        jogo.jogador = Mock(hp=10)
+        jogo.canvas = Mock()
+        jogo.dialogo_var = Mock()
+        jogo._ocultar_dado_rolagem = Mock()
+        jogo._atualizar_hud = Mock()
+        resolveu = Mock()
+
+        jogo._finalizar_teste_interacao(
+            14,
+            15,
+            "ARROMBAR ARMÁRIOS",
+            resolveu,
+            2,
+        )
+
+        self.assertEqual(jogo.jogador.hp, 8)
+        jogo._atualizar_hud.assert_called_once_with()
+        resolveu.assert_called_once_with(False, 14)
+
+    def test_falha_em_teste_de_dificuldade_dez_custa_um_hp(self):
+        jogo = Jogo.__new__(Jogo)
+        jogo._estado = "teste_interacao"
+        jogo.jogador = Mock(hp=10)
+        jogo.canvas = Mock()
+        jogo.dialogo_var = Mock()
+        jogo._ocultar_dado_rolagem = Mock()
+        jogo._atualizar_hud = Mock()
+        resolveu = Mock()
+
+        jogo._finalizar_teste_interacao(
+            9,
+            10,
+            "INVESTIGAR ARMÁRIO",
+            resolveu,
+            None,
+        )
+
+        self.assertEqual(jogo.jogador.hp, 9)
+        jogo._atualizar_hud.assert_called_once_with()
+        resolveu.assert_called_once_with(False, 9)
+
+    def test_investigacao_entrega_codigo_e_arrombamento_entrega_peca(self):
+        jogo = Jogo.__new__(Jogo)
+        jogo.inventario = {}
+        jogo.pecas = set()
+        jogo.armarios_sala1_investigados = False
+        jogo.armarios_sala1_arrombados = False
+        jogo._perto_dos_armarios_sala1 = Mock(return_value=False)
+        jogo.dialogo_var = Mock()
+
+        jogo._resultado_investigacao_armarios(True)
+        jogo._resultado_arrombamento_armarios(True)
+
+        self.assertTrue(jogo.armarios_sala1_investigados)
+        self.assertIn(PISTA_COFRE_SALA1, jogo.inventario)
+        self.assertTrue(jogo.armarios_sala1_arrombados)
+        self.assertIn(NOME_PECA_FOGUETE_SALA1, jogo.pecas)
 
 
 class TestAnimacaoD20(unittest.TestCase):

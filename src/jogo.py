@@ -68,16 +68,25 @@ SPAWN_INICIAL = (235, 410)
 TAMANHO_PERSONAGEM = {
     "sala_hibernacao": 128,
     "corredor": 256,
+    "sala_1": 128,
 }
 RAIO_JOGADOR = {
     "sala_hibernacao": 18,
     "corredor": 36,
+    "sala_1": 18,
 }
 
 IMAGENS_SALAS = {
     "sala_hibernacao": Path(__file__).resolve().parents[1] / "assets" / "cenarios" / "Sala_Hibernação.png",
     "corredor": Path(__file__).resolve().parents[1] / "assets" / "cenarios" / "Corredor.png",
+    "sala_1": Path(__file__).resolve().parents[1] / "assets" / "cenarios" / "Sala1.png",
 }
+IMAGEM_SALA1_TV_LIGADA = (
+    Path(__file__).resolve().parents[1]
+    / "assets"
+    / "cenarios"
+    / "Sala1_TV_LIGADA.png"
+)
 AUDIO_PASSOS = Path(__file__).resolve().parents[1] / "assets" / "audios" / "passos.mp3"
 IMAGENS_ITENS = {
     "Kit Médico": Path(__file__).resolve().parents[1] / "assets" / "itens" / "kit_medico.png",
@@ -115,6 +124,21 @@ COLISOES = {
         (752, 470, 208, 40),
         (774, 510, 186, 30),
     ],
+    "sala_1": [
+        (0, 0, 960, 210),
+        (0, 210, 125, 35),
+        (0, 245, 110, 50),
+        (0, 295, 90, 55),
+        (0, 350, 68, 60),
+        (0, 410, 40, 65),
+        (0, 475, 10, 65),
+        (835, 210, 125, 40),
+        (860, 250, 100, 50),
+        (880, 300, 80, 50),
+        (900, 350, 60, 60),
+        (920, 410, 40, 60),
+        (940, 470, 20, 70),
+    ],
 }
 
 # Cada retângulo de passagem leva o jogador para uma sala e posição de entrada.
@@ -134,6 +158,13 @@ ZONAS_TELEPORTE = {
             "spawn": (700, 260),
         },
     ],
+    "sala_1": [
+        {
+            "retangulo": (390, 475, 180, 65),
+            "destino": "corredor",
+            "spawn": (350, 450),
+        },
+    ],
 }
 
 PORTAS_CORREDOR = [
@@ -144,10 +175,23 @@ PORTAS_CORREDOR = [
 ]
 ITEM_CHAVE_DOURADA = {
     "nome": "Chave Dourada",
-    "sala": "sala_hibernacao",
-    "x": 500,
-    "y": 430,
+    "sala": "sala_1",
+    "x": 850,
+    "y": 470,
 }
+CODIGO_COFRE_SALA1 = "4826"
+PISTA_COFRE_SALA1 = f"Código do Cofre: {CODIGO_COFRE_SALA1}"
+NOME_PECA_FOGUETE_SALA1 = "Módulo de Energia"
+ZONA_TV_SALA1 = (395, 190, 565, 305)
+ZONAS_ARMARIOS_SALA1 = (
+    (115, 205, 235, 315),
+    (225, 205, 355, 315),
+)
+
+
+def _ponto_dentro(retangulo, x, y):
+    esquerda, topo, direita, base = retangulo
+    return esquerda <= x <= direita and topo <= y <= base
 
 
 def _ampliar_desenho_icone(imagem, escala=1.25):
@@ -182,6 +226,7 @@ def _numero_finito(valor):
 LIMITES_SALAS = {
     "sala_hibernacao": (20, 25, 940, 520),
     "corredor": (20, 25, 940, 520),
+    "sala_1": (20, 25, 940, 520),
 }
 
 SPRITES_JOGADOR = {
@@ -325,6 +370,9 @@ class Jogo:
         self.player_x, self.player_y = SPAWN_INICIAL
         self.direcao = "cima"
         self.itens_no_chao = [ITEM_CHAVE_DOURADA.copy()]
+        self.tv_sala1_ligada = False
+        self.armarios_sala1_investigados = False
+        self.armarios_sala1_arrombados = False
         self.porta3_tentativa_usada = False
         self.porta3_aberta = False
         self.xp = 0
@@ -365,6 +413,15 @@ class Jogo:
             nivel = jogador["nivel"]
             porta3_tentativa_usada = dados.get("porta3_tentativa_usada", False)
             porta3_aberta = dados.get("porta3_aberta", False)
+            tv_sala1_ligada = dados.get("tv_sala1_ligada", False)
+            armarios_sala1_investigados = dados.get(
+                "armarios_sala1_investigados",
+                False,
+            )
+            armarios_sala1_arrombados = dados.get(
+                "armarios_sala1_arrombados",
+                False,
+            )
         except (KeyError, TypeError) as erro:
             raise ValueError("O arquivo de save está incompleto ou inválido.") from erro
 
@@ -374,6 +431,15 @@ class Jogo:
             porta3_aberta, bool
         ):
             raise ValueError("O estado da porta 3 no save é inválido.")
+        if any(
+            not isinstance(valor, bool)
+            for valor in (
+                tv_sala1_ligada,
+                armarios_sala1_investigados,
+                armarios_sala1_arrombados,
+            )
+        ):
+            raise ValueError("O estado da Sala 1 no save é inválido.")
         if (
             not isinstance(nome, str)
             or not nome.strip()
@@ -452,18 +518,35 @@ class Jogo:
         self.itens_no_chao = [item.copy() for item in itens_no_chao]
         self.porta3_tentativa_usada = porta3_tentativa_usada
         self.porta3_aberta = porta3_aberta
-        save_antigo = (
-            "porta3_tentativa_usada" not in dados and "porta3_aberta" not in dados
-        )
+        self.tv_sala1_ligada = tv_sala1_ligada
+        self.armarios_sala1_investigados = armarios_sala1_investigados
+        self.armarios_sala1_arrombados = armarios_sala1_arrombados
         if (
-            save_antigo
+            "tv_sala1_ligada" not in dados
             and "Chave Dourada" not in self.inventario
-            and not any(item["nome"] == "Chave Dourada" for item in self.itens_no_chao)
         ):
-            self.itens_no_chao.append(ITEM_CHAVE_DOURADA.copy())
+            chave_no_chao = next(
+                (
+                    item
+                    for item in self.itens_no_chao
+                    if item["nome"] == "Chave Dourada"
+                ),
+                None,
+            )
+            if chave_no_chao is None:
+                self.itens_no_chao.append(ITEM_CHAVE_DOURADA.copy())
+            else:
+                chave_no_chao.update(ITEM_CHAVE_DOURADA)
+        if (
+            self.armarios_sala1_investigados
+            and PISTA_COFRE_SALA1 not in self.inventario
+        ):
+            self.inventario[PISTA_COFRE_SALA1] = 1
         self.xp = xp
         self.xp_proximo_nivel = xp_proximo_nivel
         self.pecas = set(pecas)
+        if self.armarios_sala1_arrombados:
+            self.pecas.add(NOME_PECA_FOGUETE_SALA1)
         self.ataque_extra = ataque_extra
         self._estado = "mundo"
         if not self._posicao_valida(self.player_x, self.player_y):
@@ -488,6 +571,9 @@ class Jogo:
             "itens_no_chao": [item.copy() for item in self.itens_no_chao],
             "porta3_tentativa_usada": self.porta3_tentativa_usada,
             "porta3_aberta": self.porta3_aberta,
+            "tv_sala1_ligada": self.tv_sala1_ligada,
+            "armarios_sala1_investigados": self.armarios_sala1_investigados,
+            "armarios_sala1_arrombados": self.armarios_sala1_arrombados,
             "xp": self.xp,
             "xp_proximo_nivel": self.xp_proximo_nivel,
             "pecas": sorted(self.pecas),
@@ -621,12 +707,15 @@ class Jogo:
         self._imagem_fundo = None
         self._porta_ocupada = None
         self._porta3_popup_visivel = False
+        self._objeto_interativo_sala1 = None
+        self._interacao_sala1_rolando = False
         self.tela_porta = None
         self.audio_passos = AudioPassos(AUDIO_PASSOS)
         self._imagens_fundo = {
             sala: Image.open(caminho).convert("RGBA")
             for sala, caminho in IMAGENS_SALAS.items()
         }
+        self._imagem_tv_ligada = Image.open(IMAGEM_SALA1_TV_LIGADA).convert("RGBA")
         pasta_sprites = Path(__file__).resolve().parents[1] / "assets" / "personagem"
         self._sprites_originais = {
             direcao: tuple(
@@ -882,7 +971,8 @@ class Jogo:
         self._itens_inventario = self._itens_inventario_visiveis()
         self.lista_inventario.delete(0, tk.END)
         for nome, quantidade in self._itens_inventario:
-            self.lista_inventario.insert(tk.END, f"{nome}  x{quantidade}")
+            texto = nome if nome.startswith("Código do Cofre:") else f"{nome}  x{quantidade}"
+            self.lista_inventario.insert(tk.END, texto)
         if self._itens_inventario:
             indice = min(indice, len(self._itens_inventario) - 1)
             self.lista_inventario.selection_set(indice)
@@ -897,7 +987,10 @@ class Jogo:
         self.botao_usar.configure(
             state="normal" if item in ITENS_USAVEIS else "disabled"
         )
-        self.botao_jogar.configure(state="normal" if item else "disabled")
+        pode_descartar = item is not None and not item.startswith("Código do Cofre:")
+        self.botao_jogar.configure(
+            state="normal" if pode_descartar else "disabled"
+        )
         if item:
             icone = self._icones_itens_inventario.get(
                 item,
@@ -937,7 +1030,7 @@ class Jogo:
 
     def _jogar_item_no_chao(self, event=None):
         nome = self._item_selecionado()
-        if not nome:
+        if not nome or nome.startswith("Código do Cofre:"):
             return "break"
 
         indice = self.lista_inventario.curselection()
@@ -1046,7 +1139,12 @@ class Jogo:
         self.canvas.tag_raise("hud_dado_rolagem")
 
     def _atualizar_nome_sala(self):
-        nome = "SALA DE HIBERNAÇÃO" if self.sala_atual == "sala_hibernacao" else "CORREDOR"
+        nomes = {
+            "sala_hibernacao": "SALA DE HIBERNAÇÃO",
+            "corredor": "CORREDOR",
+            "sala_1": "SALA 1",
+        }
+        nome = nomes[self.sala_atual]
         self.nome_sala_label.configure(text=f"{self.jogador.nome} — {self.classe_atual}  |  {nome}")
 
     def _redimensionar_cena(self, event=None):
@@ -1061,10 +1159,10 @@ class Jogo:
         escala_x = largura / LARGURA_MUNDO
         escala_y = altura / ALTURA_MUNDO
 
-        fundo = self._imagens_fundo[self.sala_atual].resize(
-            tamanho,
-            Image.Resampling.LANCZOS,
-        )
+        imagem_fundo = self._imagens_fundo[self.sala_atual]
+        if self.sala_atual == "sala_1" and self.tv_sala1_ligada:
+            imagem_fundo = self._imagem_tv_ligada
+        fundo = imagem_fundo.resize((largura, altura), Image.Resampling.LANCZOS)
         self._imagem_fundo = ImageTk.PhotoImage(fundo)
         if self._fundo_canvas is None:
             self._fundo_canvas = self.canvas.create_image(0, 0, anchor="nw", image=self._imagem_fundo)
@@ -1136,7 +1234,7 @@ class Jogo:
         self.teclas_pressionadas.discard(event.keysym.lower())
 
     def _atualizar_movimento(self):
-        if self._estado in {"porta", "inventario", "teste_porta"}:
+        if self._estado in {"porta", "inventario", "teste_porta", "teste_interacao"}:
             self.container.after(20, self._atualizar_movimento)
             return
         if self._estado != "mundo":
@@ -1187,11 +1285,193 @@ class Jogo:
 
     def _verificar_teleporte(self):
         for zona in ZONAS_TELEPORTE[self.sala_atual]:
-            x, y, largura, altura = zona["retangulo"]
-            if x <= self.player_x <= x + largura and y <= self.player_y <= y + altura:
+            if _ponto_dentro(
+                (
+                    zona["retangulo"][0],
+                    zona["retangulo"][1],
+                    zona["retangulo"][0] + zona["retangulo"][2],
+                    zona["retangulo"][1] + zona["retangulo"][3],
+                ),
+                self.player_x,
+                self.player_y,
+            ):
                 self._carregar_sala(zona["destino"], zona["spawn"])
                 return
-        self._verificar_porta_corredor()
+        if self.sala_atual == "corredor":
+            self._verificar_porta_corredor()
+        elif self.sala_atual == "sala_1":
+            self._verificar_interacoes_sala1()
+
+    def _verificar_interacoes_sala1(self):
+        perto_da_tv = _ponto_dentro(
+            ZONA_TV_SALA1,
+            self.player_x,
+            self.player_y,
+        )
+        if perto_da_tv and not self.tv_sala1_ligada:
+            self._ligar_tv_sala1()
+
+        perto_dos_armarios = any(
+            _ponto_dentro(zona, self.player_x, self.player_y)
+            for zona in ZONAS_ARMARIOS_SALA1
+        )
+        if perto_dos_armarios:
+            if self._objeto_interativo_sala1 != "armarios":
+                self._objeto_interativo_sala1 = "armarios"
+                self._desenhar_opcoes_armarios_sala1()
+        elif self._objeto_interativo_sala1 == "armarios":
+            self._remover_opcoes_armarios_sala1()
+
+    def _ligar_tv_sala1(self):
+        if self.tv_sala1_ligada:
+            return
+        self.tv_sala1_ligada = True
+        self._ultimo_tamanho = None
+        self._redimensionar_cena()
+        self.dialogo_var.set(
+            "A transmissão revela que as anomalias dominaram a Terra. "
+            "A última esperança é alcançar a estação espacial em uma nave "
+            "e encontrar um lugar seguro para a humanidade."
+        )
+
+    def _perto_dos_armarios_sala1(self):
+        return (
+            self.sala_atual == "sala_1"
+            and any(
+                _ponto_dentro(zona, self.player_x, self.player_y)
+                for zona in ZONAS_ARMARIOS_SALA1
+            )
+        )
+
+    def _desenhar_opcoes_armarios_sala1(self):
+        if not self._perto_dos_armarios_sala1():
+            return
+
+        self.canvas.delete("armarios_sala1_popup")
+        escala_x = self.canvas.winfo_width() / LARGURA_MUNDO
+        escala_y = self.canvas.winfo_height() / ALTURA_MUNDO
+        centro_x = 260 * escala_x
+        topo = 245 * escala_y
+        meia_largura = 205 * escala_x
+        altura = 114 * escala_y
+        self.canvas.create_rectangle(
+            centro_x - meia_largura,
+            topo,
+            centro_x + meia_largura,
+            topo + altura,
+            fill=FUNDO,
+            outline=DESTAQUE,
+            width=2,
+            tags=("armarios_sala1_popup",),
+        )
+        self.canvas.create_text(
+            centro_x,
+            topo + 16 * escala_y,
+            text="ARMÁRIOS",
+            fill=TEXTO,
+            font=("Consolas", 12, "bold"),
+            tags=("armarios_sala1_popup",),
+        )
+        opcoes = (
+            (
+                "investigar",
+                "Investigar parte aberta (D20 10+)"
+                if not self.armarios_sala1_investigados
+                else "Parte aberta — código encontrado",
+                not self.armarios_sala1_investigados,
+            ),
+            (
+                "arrombar",
+                "Arrombar armários (D20 15+)"
+                if not self.armarios_sala1_arrombados
+                else "Armários arrombados",
+                not self.armarios_sala1_arrombados,
+            ),
+            ("desistir", "Desistir", True),
+        )
+        for indice, (acao, texto, habilitada) in enumerate(opcoes):
+            tag = f"armarios_sala1_{acao}"
+            self.canvas.create_text(
+                centro_x,
+                topo + (42 + indice * 28) * escala_y,
+                text=texto,
+                fill=DESTAQUE if habilitada else SUAVE,
+                font=("Consolas", 10, "bold"),
+                tags=("armarios_sala1_popup", tag),
+            )
+            if habilitada:
+                self.canvas.tag_bind(
+                    tag,
+                    "<Button-1>",
+                    lambda _event, escolha=acao: self._acao_armarios_sala1(escolha),
+                )
+                self.canvas.tag_bind(
+                    tag,
+                    "<Enter>",
+                    lambda _event: self.canvas.configure(cursor="hand2"),
+                )
+                self.canvas.tag_bind(
+                    tag,
+                    "<Leave>",
+                    lambda _event: self.canvas.configure(cursor=""),
+                )
+        self.canvas.tag_raise("armarios_sala1_popup")
+
+    def _remover_opcoes_armarios_sala1(self):
+        self.canvas.delete("armarios_sala1_popup")
+        self.canvas.configure(cursor="")
+        self._objeto_interativo_sala1 = None
+
+    def _acao_armarios_sala1(self, acao):
+        if self._estado != "mundo" or not self._perto_dos_armarios_sala1():
+            return
+        if acao == "desistir":
+            self._remover_opcoes_armarios_sala1()
+            self.canvas.focus_set()
+        elif acao == "investigar" and not self.armarios_sala1_investigados:
+            self._remover_opcoes_armarios_sala1()
+            self._iniciar_teste_interacao(
+                10,
+                "INVESTIGAR ARMÁRIO",
+                lambda sucesso, _resultado: self._resultado_investigacao_armarios(
+                    sucesso
+                ),
+            )
+        elif acao == "arrombar" and not self.armarios_sala1_arrombados:
+            self._remover_opcoes_armarios_sala1()
+            self._iniciar_teste_interacao(
+                15,
+                "ARROMBAR ARMÁRIOS",
+                lambda sucesso, _resultado: self._resultado_arrombamento_armarios(
+                    sucesso
+                ),
+                dano_falha=2,
+            )
+
+    def _resultado_investigacao_armarios(self, sucesso):
+        if sucesso:
+            self.armarios_sala1_investigados = True
+            self.inventario[PISTA_COFRE_SALA1] = 1
+            self.dialogo_var.set(
+                f"Você encontrou uma anotação: o código do cofre é "
+                f"{CODIGO_COFRE_SALA1}. O código foi guardado no inventário."
+            )
+        else:
+            self.dialogo_var.set("Você não conseguiu decifrar a anotação.")
+        if self._perto_dos_armarios_sala1():
+            self._objeto_interativo_sala1 = "armarios"
+            self._desenhar_opcoes_armarios_sala1()
+
+    def _resultado_arrombamento_armarios(self, sucesso):
+        if sucesso:
+            self.armarios_sala1_arrombados = True
+            self.pecas.add(NOME_PECA_FOGUETE_SALA1)
+            self.dialogo_var.set(
+                f"Você arrombou os armários e encontrou {NOME_PECA_FOGUETE_SALA1}."
+            )
+        if self._perto_dos_armarios_sala1():
+            self._objeto_interativo_sala1 = "armarios"
+            self._desenhar_opcoes_armarios_sala1()
 
     def _verificar_porta_corredor(self):
         if self.sala_atual != "corredor":
@@ -1208,7 +1488,9 @@ class Jogo:
             x, y, largura, altura = porta["retangulo"]
             if x <= self.player_x <= x + largura and y <= self.player_y <= y + altura:
                 self._porta_ocupada = porta
-                if porta["numero"] == 3:
+                if porta["numero"] == 1:
+                    self._carregar_sala("sala_1", (480, 430))
+                elif porta["numero"] == 3:
                     if self.porta3_aberta:
                         self._abrir_porta(3)
                     else:
@@ -1325,22 +1607,38 @@ class Jogo:
         elif acao == "arrombar":
             self._iniciar_teste_porta3()
 
-    def _iniciar_teste_porta3(self):
+    @staticmethod
+    def _dano_por_falha_teste(dificuldade):
+        if dificuldade >= 18:
+            return 3
+        if dificuldade > 15:
+            return 2
+        if dificuldade >= 10:
+            return 1
+        return 0
+
+    def _iniciar_teste_interacao(
+        self,
+        dificuldade,
+        descricao,
+        ao_resolver,
+        dano_falha=None,
+    ):
         if (
             self._estado != "mundo"
-            or self.porta3_tentativa_usada
-            or not self._jogador_perto_da_porta3()
             or self.animador_d20.rolando
             or self.animador_d20_grande.rolando
         ):
             return
 
-        self.porta3_tentativa_usada = True
-        self._estado = "teste_porta"
+        self._estado = "teste_interacao"
         self.teclas_pressionadas.clear()
         self.audio_passos.parar()
-        self._remover_opcoes_porta3()
         self._posicionar_dado_hud()
+        self.canvas.itemconfigure(
+            self.d20_rolagem_titulo,
+            text=f"TESTE D20: {descricao} ({dificuldade}+)",
+        )
         for item in (
             self.d20_rolagem_imagem,
             self.d20_rolagem_texto,
@@ -1348,21 +1646,52 @@ class Jogo:
         ):
             self.canvas.itemconfigure(item, state="normal")
         self.canvas.tag_raise("hud_dado_rolagem")
-        self.animador_d20_grande.rolar_teste(self._resultado_teste_porta3)
+        try:
+            self.animador_d20_grande.rolar_teste(
+                lambda resultado: self._resultado_teste_interacao(
+                    resultado,
+                    dificuldade,
+                    descricao,
+                    ao_resolver,
+                    dano_falha,
+                )
+            )
+        except (RuntimeError, ValueError, tk.TclError) as erro:
+            self._ocultar_dado_rolagem()
+            self._estado = "mundo"
+            messagebox.showerror(
+                "Erro no teste",
+                f"Não foi possível concluir o teste de D20:\n{erro}",
+                parent=self.container.winfo_toplevel(),
+            )
+            self.canvas.focus_set()
 
-    def _resultado_teste_porta3(self, resultado):
-        if self._estado != "teste_porta":
+    def _resultado_teste_interacao(
+        self,
+        resultado,
+        dificuldade,
+        descricao,
+        ao_resolver,
+        dano_falha,
+    ):
+        if self._estado != "teste_interacao":
             return
         self.animador_d20.mostrar(resultado)
-        self.dialogo_var.set(f"D20: {resultado} — precisa de 18+.")
+        self.dialogo_var.set(
+            f"{descricao}: D20 {resultado}; precisa de {dificuldade}+."
+        )
         self.container.after(
             3000,
-            lambda: self._finalizar_teste_porta3(resultado),
+            lambda: self._finalizar_teste_interacao(
+                resultado,
+                dificuldade,
+                descricao,
+                ao_resolver,
+                dano_falha,
+            ),
         )
 
-    def _finalizar_teste_porta3(self, resultado):
-        if self._estado != "teste_porta":
-            return
+    def _ocultar_dado_rolagem(self):
         for item in (
             self.d20_rolagem_imagem,
             self.d20_rolagem_texto,
@@ -1370,17 +1699,60 @@ class Jogo:
         ):
             self.canvas.itemconfigure(item, state="hidden")
 
-        if resultado >= 18:
-            self.porta3_aberta = True
-            self.dialogo_var.set("A porta reforçada abriu.")
-            self._abrir_porta(3)
+    def _finalizar_teste_interacao(
+        self,
+        resultado,
+        dificuldade,
+        descricao,
+        ao_resolver,
+        dano_falha,
+    ):
+        if self._estado != "teste_interacao":
             return
+        self._ocultar_dado_rolagem()
+        sucesso = resultado >= dificuldade
+        if not sucesso:
+            dano = (
+                self._dano_por_falha_teste(dificuldade)
+                if dano_falha is None
+                else dano_falha
+            )
+            if dano:
+                self.jogador.hp = max(0, self.jogador.hp - dano)
+                self._atualizar_hud()
+                self.dialogo_var.set(
+                    f"Falha no teste de {descricao.lower()}: perdeu {dano} HP."
+                )
 
         self._estado = "mundo"
-        self.dialogo_var.set("Falha: a tentativa foi usada. Você ainda pode usar a chave.")
+        ao_resolver(sucesso, resultado)
+        self.canvas.focus_set()
+
+    def _iniciar_teste_porta3(self):
+        if (
+            self.porta3_tentativa_usada
+            or not self._jogador_perto_da_porta3()
+        ):
+            return
+
+        self.porta3_tentativa_usada = True
+        self._remover_opcoes_porta3()
+        self._iniciar_teste_interacao(
+            18,
+            "ARROMBAR PORTA REFORÇADA",
+            self._resultado_arrombamento_porta3,
+        )
+
+    def _resultado_arrombamento_porta3(self, sucesso, _resultado):
+        if sucesso:
+            self.porta3_aberta = True
+            self._abrir_porta(3)
+            return
+        self.dialogo_var.set(
+            "Falha: a porta resistiu. Você ainda pode usar a Chave Dourada."
+        )
         if self._jogador_perto_da_porta3():
             self._desenhar_opcoes_porta3()
-        self.canvas.focus_set()
 
     def _abrir_porta(self, numero):
         if numero == 3:
@@ -1416,8 +1788,12 @@ class Jogo:
         return "break"
 
     def _carregar_sala(self, sala, spawn):
+        if self._objeto_interativo_sala1 == "armarios":
+            self._remover_opcoes_armarios_sala1()
+        self._estado = "mundo"
         self.sala_atual = sala
         self.player_x, self.player_y = spawn
+        self._porta_ocupada = None
         self.audio_passos.parar()
         self.direcao = "baixo"
         self._quadro_animacao = 0
