@@ -66,13 +66,16 @@ o-despertar-do-eter/
 ## 🕹️ Salas, movimento e D20
 
 * Use **WASD** ou as **setas** para andar. O personagem anima na direção do movimento.
-* Atravesse a porta da sala de hibernação para entrar no corredor. A porta 1 leva à Sala 1; as portas 2 e 4 mostram uma tela de identificação.
+* Atravesse a porta da sala de hibernação para entrar no corredor. A porta 1 leva à Sala 1, a porta 2 leva à Sala 2 e a porta 4 mostra uma tela de identificação.
 * No começo, o personagem aparece em frente à segunda câmara criogênica, da esquerda para a direita (a que tem a maca aberta).
 * No corredor, avance para cima para explorar até a parede do fundo; volte para baixo até a entrada para retornar à sala de hibernação.
 * O personagem se move 30% mais rápido que antes.
 * A **Chave Dourada** fica no canto da Sala 1. A porta 3 do corredor é reforçada: use a chave ou tente arrombá-la com um resultado **18+** no D20. O teste só pode ser feito uma vez; as opções aparecem perto da porta e somem ao se afastar. Abrir essa saída leva a um final em que o personagem é atacado pelas anomalias; use **ESC** para voltar ao menu.
 * Na Sala 1, aproxime-se da TV para ligá-la e ler uma transmissão de emergência em destaque. A TV permanece ligada ao sair, voltar ou carregar o jogo. Perto dos armários, investigue a parte aberta com **D20 10+** para descobrir a senha aleatória de quatro dígitos, ou tente arrombá-los com **D20 15+** para obter uma peça do foguete. A tentativa de arrombamento pode ser repetida; cada falha custa **2 HP**.
 * Aproxime-se do quadro para investigá-lo com **D20 10+**. O sucesso revela o cofre escondido; digite a senha encontrada nos armários e pressione **Enter** para abrir e receber outra peça do foguete. A senha é gerada a cada nova partida e preservada no save.
+* Na Sala 2, o Glitch fica parado. Aproxime-se e clique em **INTERAGIR E LUTAR** para iniciar o confronto obrigatório por turnos; tentar alcançar as estantes também revela essa opção. Ataque com as mãos ou use os itens que ainda tiver: Kit Médico e Adrenalina recuperam vida; o EMP consome o item e faz o Glitch perder um turno. O Glitch tem 24 HP, ataque 5 e defesa 3. Se o personagem chegar a 0 HP, aparece uma tela de morte com a mensagem sendo digitada aos poucos e uma opção para voltar ao menu.
+* O Glitch alterna entre os três sprites em intervalos aleatórios de **100 a 400 ms**, sem repetir o mesmo frame consecutivamente. Depois de derrotá-lo, investigue as três estantes: da esquerda para a direita, elas contêm **Chave de Prata**, nada e **Chave de Fenda**. O estado da luta e das estantes é salvo.
+* A Chave de Fenda é reutilizável. Na sala de hibernação, aproxime-se da cápsula mais à esquerda e faça um teste **D20 10+** para retirar dela o **Módulo de Energia da Cápsula**. A peça e o progresso ficam salvos.
 * Falhas em testes com dificuldade **10 ou mais** causam dano: **1 HP** de 10 a 15, **2 HP** acima de 15 e **3 HP** a partir de 18. Arrombar os armários tem a penalidade específica de **2 HP** por falha.
 * Pressione **E** (ou clique em **MOCHILA [E]**) para abrir o inventário. Use as setas para selecionar, **Enter** para usar, **Delete** para jogar no chão e **ESC** para fechar. O kit médico e a chave dourada aparecem com seus ícones na mochila e no chão; itens no chão podem ser clicados para recolher.
 * A vida é mostrada no alto à esquerda; XP e nível ficam no alto à direita.
@@ -95,6 +98,8 @@ No início de [`src/jogo.py`](src/jogo.py), edite `COLISOES`. Cada bloco é uma 
 
 Mude os quatro números para mover ou redimensionar o bloco; acrescente outra tupla para bloquear uma nova área. As coordenadas são relativas à imagem da sala, não ao tamanho atual da janela. A personagem não poderá atravessar os retângulos.
 
+Para ajustar especificamente as estantes da Sala 2, edite os três retângulos em `COLISOES["sala_2"]`. Cada tupla corresponde, da esquerda para a direita, a uma estante. Mantenha os blocos junto à parede e deixe o espaço do piso em frente livre para o personagem conseguir investigar.
+
 ### Ajustar a passagem entre salas
 
 No mesmo arquivo, edite `ZONAS_TELEPORTE`. Cada `retangulo` define a área que o personagem precisa atravessar; `destino` escolhe a próxima sala e `spawn` define onde ele aparece nela. Para ajustar a saída da Sala 1 pelo feixe no chão, altere apenas o item da lista `"sala_1"`:
@@ -108,6 +113,8 @@ No mesmo arquivo, edite `ZONAS_TELEPORTE`. Cada `retangulo` define a área que o
 ```
 
 Para mudar a saída, ajuste `(x, y, largura, altura)` em `retangulo`. Para alterar onde o jogador aparece no corredor, mude `spawn`. Para criar uma nova saída, adicione outro bloco à lista da sala e informe a sala de destino e a posição de chegada.
+
+Na Sala 2, a passagem de volta ao corredor é o retângulo da lista `"sala_2"`; ajuste `retangulo` para mover a saída e `spawn` para escolher o ponto de retorno.
 
 ---
 

@@ -8,6 +8,7 @@ import customtkinter as ctk
 from PIL import Image, ImageTk
 
 from audio import AudioPassos
+from combate import atacar
 from dice_anim import AnimadorD20
 from models import Entidade
 from savegame import VERSAO_SAVE, salvar_jogo
@@ -61,6 +62,18 @@ ITENS_USAVEIS = {
     "Kit Médico": 12,
     "Adrenalina": 8,
 }
+NOME_CHAVE_PRATA = "Chave de Prata"
+NOME_CHAVE_FENDA = "Chave de Fenda"
+NOME_MODULO_CAPSULA = "Módulo de Energia da Cápsula"
+HP_ANOMALIA_SALA2 = 24
+ATAQUE_ANOMALIA_SALA2 = 5
+DEFESA_ANOMALIA_SALA2 = 3
+RAIO_ENCONTRO_SALA2 = 82
+TEXTO_MORTE_GLITCH = (
+    "Você sente o Glitch percorrer cada veia do seu corpo. A anomalia invade "
+    "seus sentidos, devora sua força e, antes que possa gritar, consome tudo "
+    "o que resta de você."
+)
 
 LARGURA_MUNDO = 960
 ALTURA_MUNDO = 540
@@ -70,17 +83,20 @@ TAMANHO_PERSONAGEM = {
     "sala_hibernacao": 128,
     "corredor": 256,
     "sala_1": 128,
+    "sala_2": 128,
 }
 RAIO_JOGADOR = {
     "sala_hibernacao": 18,
     "corredor": 36,
     "sala_1": 18,
+    "sala_2": 18,
 }
 
 IMAGENS_SALAS = {
     "sala_hibernacao": Path(__file__).resolve().parents[1] / "assets" / "cenarios" / "Sala_Hibernação.png",
     "corredor": Path(__file__).resolve().parents[1] / "assets" / "cenarios" / "Corredor.png",
     "sala_1": Path(__file__).resolve().parents[1] / "assets" / "cenarios" / "Sala1.png",
+    "sala_2": Path(__file__).resolve().parents[1] / "assets" / "cenarios" / "Sala2.png",
 }
 IMAGEM_SALA1_TV_LIGADA = (
     Path(__file__).resolve().parents[1]
@@ -148,6 +164,11 @@ COLISOES = {
         (144, 205, 74, 38),
         (240, 205, 74, 38),
     ],
+    "sala_2": [
+        (195, 205, 137, 48),
+        (405, 205, 145, 48),
+        (628, 205, 137, 48),
+    ],
 }
 
 # Cada retângulo de passagem leva o jogador para uma sala e posição de entrada.
@@ -174,6 +195,13 @@ ZONAS_TELEPORTE = {
             "spawn": (350, 450),
         },
     ],
+    "sala_2": [
+        {
+            "retangulo": (390, 495, 180, 45),
+            "destino": "corredor",
+            "spawn": (440, 350),
+        },
+    ],
 }
 
 PORTAS_CORREDOR = [
@@ -191,6 +219,19 @@ ITEM_CHAVE_DOURADA = {
 PISTA_COFRE_SALA1 = "Código do Cofre"
 NOME_PECA_FOGUETE_SALA1 = "Módulo de Energia"
 NOME_PECA_COFRE_SALA1 = "Módulo de Propulsão"
+ZONA_CAPSULA_ESQUERDA = (30, 375, 150, 525)
+POSICAO_GLITCH_SALA2 = (480, 360)
+TAMANHO_GLITCH_SALA2 = 112
+ZONAS_ESTANTES_SALA2 = (
+    (190, 260, 345, 330),
+    (400, 260, 555, 330),
+    (620, 260, 775, 330),
+)
+RECOMPENSAS_ESTANTES_SALA2 = (
+    NOME_CHAVE_PRATA,
+    None,
+    NOME_CHAVE_FENDA,
+)
 ZONA_TV_SALA1 = (395, 190, 565, 305)
 ZONAS_ARMARIOS_SALA1 = (
     (115, 205, 235, 315),
@@ -254,6 +295,7 @@ LIMITES_SALAS = {
     "sala_hibernacao": (20, 25, 940, 520),
     "corredor": (20, 25, 940, 520),
     "sala_1": (20, 25, 940, 520),
+    "sala_2": (20, 230, 940, 520),
 }
 
 SPRITES_JOGADOR = {
@@ -405,6 +447,9 @@ class Jogo:
         self.cofre_sala1_aberto = False
         self.porta3_tentativa_usada = False
         self.porta3_aberta = False
+        self.anomalia_sala2_derrotada = False
+        self.estantes_sala2_investigadas = []
+        self.modulo_capsula_retirado = False
         self.xp = 0
         self.xp_proximo_nivel = 100
         self.pecas = set()
@@ -458,6 +503,18 @@ class Jogo:
                 False,
             )
             cofre_sala1_aberto = dados.get("cofre_sala1_aberto", False)
+            anomalia_sala2_derrotada = dados.get(
+                "anomalia_sala2_derrotada",
+                False,
+            )
+            estantes_sala2_investigadas = dados.get(
+                "estantes_sala2_investigadas",
+                [],
+            )
+            modulo_capsula_retirado = dados.get(
+                "modulo_capsula_retirado",
+                False,
+            )
         except (KeyError, TypeError) as erro:
             raise ValueError("O arquivo de save está incompleto ou inválido.") from erro
 
@@ -475,9 +532,23 @@ class Jogo:
                 armarios_sala1_arrombados,
                 quadro_sala1_investigado,
                 cofre_sala1_aberto,
+                anomalia_sala2_derrotada,
+                modulo_capsula_retirado,
             )
         ):
-            raise ValueError("O estado da Sala 1 no save é inválido.")
+            raise ValueError("O estado das salas no save é inválido.")
+        if (
+            not isinstance(estantes_sala2_investigadas, list)
+            or any(
+                isinstance(indice, bool)
+                or not isinstance(indice, int)
+                or indice not in range(len(ZONAS_ESTANTES_SALA2))
+                for indice in estantes_sala2_investigadas
+            )
+            or len(set(estantes_sala2_investigadas))
+            != len(estantes_sala2_investigadas)
+        ):
+            raise ValueError("O estado das estantes da Sala 2 no save é inválido.")
         if codigo_cofre_sala1 is None:
             codigo_cofre_sala1 = _gerar_codigo_cofre_sala1()
         elif (
@@ -573,6 +644,9 @@ class Jogo:
         self.codigo_cofre_sala1 = codigo_cofre_sala1
         self.quadro_sala1_investigado = quadro_sala1_investigado
         self.cofre_sala1_aberto = cofre_sala1_aberto
+        self.anomalia_sala2_derrotada = anomalia_sala2_derrotada
+        self.estantes_sala2_investigadas = list(estantes_sala2_investigadas)
+        self.modulo_capsula_retirado = modulo_capsula_retirado
         if (
             "tv_sala1_ligada" not in dados
             and "Chave Dourada" not in self.inventario
@@ -603,6 +677,8 @@ class Jogo:
             self.pecas.add(NOME_PECA_FOGUETE_SALA1)
         if self.cofre_sala1_aberto:
             self.pecas.add(NOME_PECA_COFRE_SALA1)
+        if self.modulo_capsula_retirado:
+            self.pecas.add(NOME_MODULO_CAPSULA)
         self.ataque_extra = ataque_extra
         self._estado = "mundo"
         if not self._posicao_valida(self.player_x, self.player_y):
@@ -633,6 +709,11 @@ class Jogo:
             "codigo_cofre_sala1": self.codigo_cofre_sala1,
             "quadro_sala1_investigado": self.quadro_sala1_investigado,
             "cofre_sala1_aberto": self.cofre_sala1_aberto,
+            "anomalia_sala2_derrotada": self.anomalia_sala2_derrotada,
+            "estantes_sala2_investigadas": list(
+                self.estantes_sala2_investigadas
+            ),
+            "modulo_capsula_retirado": self.modulo_capsula_retirado,
             "xp": self.xp,
             "xp_proximo_nivel": self.xp_proximo_nivel,
             "pecas": sorted(self.pecas),
@@ -655,6 +736,8 @@ class Jogo:
     def _voltar_menu(self):
         if not self._salvar_progresso():
             return
+        self._parar_animacao_anomalia_sala2()
+        self._cancelar_animacao_morte()
         self.audio_passos.parar()
         self._estado = "menu"
         self.ao_menu()
@@ -669,6 +752,8 @@ class Jogo:
             return
         if salvar and not self._salvar_progresso():
             return
+        self._parar_animacao_anomalia_sala2()
+        self._cancelar_animacao_morte()
         self.audio_passos.parar()
         self.container.winfo_toplevel().destroy()
 
@@ -768,6 +853,21 @@ class Jogo:
         self._porta3_popup_visivel = False
         self._objeto_interativo_sala1 = None
         self._interacao_sala1_rolando = False
+        self._estante_sala2_interativa = None
+        self._glitch_popup_visivel = False
+        self._anomalia_after_id = None
+        self._anomalia_frame = 0
+        self._anomalia_paralisada = False
+        self._tamanho_sprites_anomalia = None
+        self._capsula_popup_visivel = False
+        self.anomalia_sala2 = Entidade(
+            "Glitch",
+            HP_ANOMALIA_SALA2,
+            ATAQUE_ANOMALIA_SALA2,
+            DEFESA_ANOMALIA_SALA2,
+            1,
+        )
+        self._janela_combate = None
         self._cofre_sala1_canvas = None
         self._imagem_cofre_sala1_tk = None
         self._tela_tv_sala1_aberta = False
@@ -781,6 +881,15 @@ class Jogo:
         self._imagem_tv_ligada = Image.open(IMAGEM_SALA1_TV_LIGADA).convert("RGBA")
         self._imagem_cofre_sala1 = Image.open(IMAGEM_COFRE_SALA1).convert("RGBA")
         pasta_sprites = Path(__file__).resolve().parents[1] / "assets" / "personagem"
+        pasta_anomalia = pasta_sprites / "anomalia(glitch)"
+        self._sprites_anomalia_originais = tuple(
+            Image.open(
+                pasta_anomalia / f"Glitch_Posição_{indice}.png"
+            ).convert("RGBA")
+            for indice in range(1, 4)
+        )
+        self._sprites_anomalia_redimensionados = ()
+        self._imagem_anomalia_tk = None
         self._sprites_originais = {
             direcao: tuple(
                 Image.open(pasta_sprites / arquivo).convert("RGBA")
@@ -815,6 +924,7 @@ class Jogo:
 
         self._desenhar_hud()
         self._atualizar_hud()
+        self._iniciar_animacao_anomalia_sala2()
 
     def _desenhar_hud(self):
         self.d20_imagem = self.canvas.create_image(
@@ -1188,6 +1298,9 @@ class Jogo:
             self.canvas.tag_raise("hud_d20")
         if self._porta3_popup_visivel:
             self.canvas.tag_raise("porta3_popup")
+        if getattr(self, "_glitch_popup_visivel", False):
+            self.canvas.tag_raise("glitch_sala2_popup")
+        self._desenhar_anomalia_sala2()
 
     def _posicionar_dado_hud(self):
         largura = self.canvas.winfo_width()
@@ -1207,6 +1320,7 @@ class Jogo:
             "sala_hibernacao": "SALA DE HIBERNAÇÃO",
             "corredor": "CORREDOR",
             "sala_1": "SALA 1",
+            "sala_2": "SALA 2 — ESTANTES",
         }
         nome = nomes[self.sala_atual]
         self.nome_sala_label.configure(text=f"{self.jogador.nome} — {self.classe_atual}  |  {nome}")
@@ -1251,6 +1365,12 @@ class Jogo:
         self._posicionar_dado_hud()
         if self._porta3_popup_visivel:
             self._desenhar_opcoes_porta3()
+        if self._glitch_popup_visivel:
+            self._desenhar_opcoes_glitch_sala2()
+        if self._estante_sala2_interativa is not None:
+            self._desenhar_opcoes_estantes_sala2()
+        if self._capsula_popup_visivel:
+            self._desenhar_opcoes_capsula_esquerda()
         self._desenhar_cofre_sala1(escala_x, escala_y)
         if self._tela_tv_sala1_aberta:
             self._desenhar_transmissao_tv_sala1()
@@ -1265,6 +1385,81 @@ class Jogo:
         self.canvas.coords(self.player, self.player_x * escala_x, self.player_y * escala_y)
         self.canvas.itemconfigure(self.player, image=imagem)
         self._imagem_jogador = imagem
+
+    def _desenhar_anomalia_sala2(self):
+        if self.sala_atual != "sala_2" or self.anomalia_sala2_derrotada:
+            if getattr(self, "_anomalia_canvas", None) is not None:
+                self.canvas.delete(self._anomalia_canvas)
+                self._anomalia_canvas = None
+            return
+        if not self._sprites_anomalia_originais:
+            return
+
+        escala_x = self.canvas.winfo_width() / LARGURA_MUNDO
+        escala_y = self.canvas.winfo_height() / ALTURA_MUNDO
+        tamanho = (
+            max(1, round(TAMANHO_GLITCH_SALA2 * escala_x)),
+            max(1, round(TAMANHO_GLITCH_SALA2 * escala_y)),
+        )
+        if tamanho != self._tamanho_sprites_anomalia:
+            self._sprites_anomalia_redimensionados = tuple(
+                ImageTk.PhotoImage(
+                    sprite.resize(tamanho, Image.Resampling.NEAREST)
+                )
+                for sprite in self._sprites_anomalia_originais
+            )
+            self._tamanho_sprites_anomalia = tamanho
+        self._imagem_anomalia_tk = self._sprites_anomalia_redimensionados[
+            self._anomalia_frame
+        ]
+        x, y = POSICAO_GLITCH_SALA2
+        coordenadas = (x * escala_x, y * escala_y)
+        if getattr(self, "_anomalia_canvas", None) is None:
+            self._anomalia_canvas = self.canvas.create_image(
+                *coordenadas,
+                image=self._imagem_anomalia_tk,
+                tags=("anomalia_sala2",),
+            )
+        else:
+            self.canvas.coords(self._anomalia_canvas, *coordenadas)
+            self.canvas.itemconfigure(
+                self._anomalia_canvas,
+                image=self._imagem_anomalia_tk,
+                state="normal",
+            )
+        if hasattr(self, "player"):
+            self.canvas.tag_lower(self._anomalia_canvas, self.player)
+
+    def _iniciar_animacao_anomalia_sala2(self):
+        self._desenhar_anomalia_sala2()
+        if (
+            self.sala_atual == "sala_2"
+            and not self.anomalia_sala2_derrotada
+            and self._anomalia_after_id is None
+        ):
+            atraso = 100 + secrets.randbelow(301)
+            self._anomalia_after_id = self.container.after(
+                atraso,
+                self._avancar_animacao_anomalia_sala2,
+            )
+
+    def _avancar_animacao_anomalia_sala2(self):
+        self._anomalia_after_id = None
+        if self.sala_atual != "sala_2" or self.anomalia_sala2_derrotada:
+            return
+        quadros_possiveis = [
+            indice
+            for indice in range(3)
+            if indice != self._anomalia_frame
+        ]
+        self._anomalia_frame = secrets.choice(quadros_possiveis)
+        self._iniciar_animacao_anomalia_sala2()
+
+    def _parar_animacao_anomalia_sala2(self):
+        identificador = getattr(self, "_anomalia_after_id", None)
+        if identificador is not None:
+            self.container.after_cancel(identificador)
+            self._anomalia_after_id = None
 
     def _desenhar_cofre_sala1(self, escala_x, escala_y):
         if self.sala_atual != "sala_1" or not self.quadro_sala1_investigado:
@@ -1366,6 +1561,7 @@ class Jogo:
             "teste_interacao",
             "transmissao_tv",
             "senha_cofre",
+            "combate",
         }:
             self.container.after(20, self._atualizar_movimento)
             return
@@ -1433,6 +1629,10 @@ class Jogo:
             self._verificar_porta_corredor()
         elif self.sala_atual == "sala_1":
             self._verificar_interacoes_sala1()
+        elif self.sala_atual == "sala_2":
+            self._verificar_interacoes_sala2()
+        elif self.sala_atual == "sala_hibernacao":
+            self._verificar_interacao_capsula_esquerda()
 
     def _verificar_interacoes_sala1(self):
         perto_da_tv = _ponto_dentro(
@@ -1464,6 +1664,550 @@ class Jogo:
             self._remover_opcoes_armarios_sala1()
         elif self._objeto_interativo_sala1 == "cofre":
             self._remover_opcoes_cofre_sala1()
+
+    def _verificar_interacoes_sala2(self):
+        perto_de_estante = any(
+            _ponto_dentro(zona, self.player_x, self.player_y)
+            for zona in ZONAS_ESTANTES_SALA2
+        )
+        distancia_glitch = math.hypot(
+            self.player_x - POSICAO_GLITCH_SALA2[0],
+            self.player_y - POSICAO_GLITCH_SALA2[1],
+        )
+        if not self.anomalia_sala2_derrotada:
+            if distancia_glitch <= RAIO_ENCONTRO_SALA2 or perto_de_estante:
+                if not self._glitch_popup_visivel:
+                    self._glitch_popup_visivel = True
+                    self._desenhar_opcoes_glitch_sala2()
+            elif self._glitch_popup_visivel:
+                self._remover_opcoes_glitch_sala2()
+            return
+        if self._glitch_popup_visivel:
+            self._remover_opcoes_glitch_sala2()
+
+        estante = next(
+            (
+                indice
+                for indice, zona in enumerate(ZONAS_ESTANTES_SALA2)
+                if _ponto_dentro(zona, self.player_x, self.player_y)
+            ),
+            None,
+        )
+        if estante == self._estante_sala2_interativa:
+            return
+        if self._estante_sala2_interativa is not None:
+            self._remover_opcoes_estantes_sala2()
+        if estante is not None:
+            self._estante_sala2_interativa = estante
+            self._desenhar_opcoes_estantes_sala2()
+
+    def _desenhar_opcoes_glitch_sala2(self):
+        if not self._glitch_popup_visivel or self.anomalia_sala2_derrotada:
+            return
+        self.canvas.delete("glitch_sala2_popup")
+        escala_x = self.canvas.winfo_width() / LARGURA_MUNDO
+        escala_y = self.canvas.winfo_height() / ALTURA_MUNDO
+        centro_x = self.canvas.winfo_width() / 2
+        topo = 206 * escala_y
+        meia_largura = 190 * escala_x
+        self.canvas.create_rectangle(
+            centro_x - meia_largura,
+            topo,
+            centro_x + meia_largura,
+            topo + 78 * escala_y,
+            fill=FUNDO,
+            outline="#FF5C69",
+            width=2,
+            tags=("glitch_sala2_popup",),
+        )
+        self.canvas.create_text(
+            centro_x,
+            topo + 22 * escala_y,
+            text="O GLITCH BLOQUEIA O CAMINHO",
+            fill=TEXTO,
+            font=("Consolas", 11, "bold"),
+            tags=("glitch_sala2_popup",),
+        )
+        self.canvas.create_text(
+            centro_x,
+            topo + 53 * escala_y,
+            text="CLIQUE PARA INTERAGIR E LUTAR",
+            fill="#FF5C69",
+            font=("Consolas", 10, "bold"),
+            tags=("glitch_sala2_popup", "glitch_sala2_acao"),
+        )
+        self.canvas.tag_bind(
+            "glitch_sala2_acao",
+            "<Button-1>",
+            lambda _event: self._interagir_com_glitch_sala2(),
+        )
+        self.canvas.tag_bind(
+            "glitch_sala2_acao",
+            "<Enter>",
+            lambda _event: self.canvas.configure(cursor="hand2"),
+        )
+        self.canvas.tag_bind(
+            "glitch_sala2_acao",
+            "<Leave>",
+            lambda _event: self.canvas.configure(cursor=""),
+        )
+        self.canvas.tag_raise("glitch_sala2_popup")
+
+    def _remover_opcoes_glitch_sala2(self):
+        self.canvas.delete("glitch_sala2_popup")
+        self.canvas.configure(cursor="")
+        self._glitch_popup_visivel = False
+
+    def _interagir_com_glitch_sala2(self):
+        perto_do_glitch = math.hypot(
+            self.player_x - POSICAO_GLITCH_SALA2[0],
+            self.player_y - POSICAO_GLITCH_SALA2[1],
+        ) <= RAIO_ENCONTRO_SALA2
+        perto_de_estante = any(
+            _ponto_dentro(zona, self.player_x, self.player_y)
+            for zona in ZONAS_ESTANTES_SALA2
+        )
+        if (
+            self._estado != "mundo"
+            or self.sala_atual != "sala_2"
+            or self.anomalia_sala2_derrotada
+            or not self._glitch_popup_visivel
+            or not (perto_do_glitch or perto_de_estante)
+        ):
+            return
+        self._remover_opcoes_glitch_sala2()
+        self._iniciar_combate_anomalia_sala2()
+
+    def _desenhar_opcoes_estantes_sala2(self):
+        indice = self._estante_sala2_interativa
+        if indice is None or not self.anomalia_sala2_derrotada:
+            return
+
+        self.canvas.delete("estantes_sala2_popup")
+        escala_x = self.canvas.winfo_width() / LARGURA_MUNDO
+        escala_y = self.canvas.winfo_height() / ALTURA_MUNDO
+        centro_x = (270, 477, 697)[indice] * escala_x
+        topo = 290 * escala_y
+        recompensa = RECOMPENSAS_ESTANTES_SALA2[indice]
+        investigada = indice in self.estantes_sala2_investigadas
+        if investigada:
+            texto = (
+                "A ESTANTE ESTÁ VAZIA"
+                if recompensa is None
+                else f"ENCONTRADO: {recompensa}"
+            )
+        else:
+            texto = "Investigar estante"
+        largura = 190 * escala_x
+        self.canvas.create_rectangle(
+            centro_x - largura / 2,
+            topo,
+            centro_x + largura / 2,
+            topo + 62 * escala_y,
+            fill=FUNDO,
+            outline=DESTAQUE,
+            width=2,
+            tags=("estantes_sala2_popup",),
+        )
+        self.canvas.create_text(
+            centro_x,
+            topo + 18 * escala_y,
+            text=texto,
+            fill=SUAVE if investigada else TEXTO,
+            font=("Consolas", 10, "bold"),
+            tags=("estantes_sala2_popup",),
+        )
+        if not investigada:
+            self.canvas.create_text(
+                centro_x,
+                topo + 43 * escala_y,
+                text="CLIQUE PARA INVESTIGAR",
+                fill=DESTAQUE,
+                font=("Consolas", 9, "bold"),
+                tags=("estantes_sala2_popup", "estante_sala2_acao"),
+            )
+            self.canvas.tag_bind(
+                "estante_sala2_acao",
+                "<Button-1>",
+                lambda _event, estante_indice=indice: (
+                    self._investigar_estante_sala2(estante_indice)
+                ),
+            )
+            self.canvas.tag_bind(
+                "estante_sala2_acao",
+                "<Enter>",
+                lambda _event: self.canvas.configure(cursor="hand2"),
+            )
+            self.canvas.tag_bind(
+                "estante_sala2_acao",
+                "<Leave>",
+                lambda _event: self.canvas.configure(cursor=""),
+            )
+        self.canvas.tag_raise("estantes_sala2_popup")
+
+    def _investigar_estante_sala2(self, indice):
+        if (
+            self._estado != "mundo"
+            or not self.anomalia_sala2_derrotada
+            or indice not in range(len(RECOMPENSAS_ESTANTES_SALA2))
+            or indice in self.estantes_sala2_investigadas
+            or not _ponto_dentro(
+                ZONAS_ESTANTES_SALA2[indice],
+                self.player_x,
+                self.player_y,
+            )
+        ):
+            return
+
+        self.estantes_sala2_investigadas.append(indice)
+        recompensa = RECOMPENSAS_ESTANTES_SALA2[indice]
+        if recompensa is None:
+            self.dialogo_var.set("Você investigou a estante, mas não encontrou nada.")
+        else:
+            self.inventario[recompensa] = self.inventario.get(recompensa, 0) + 1
+            self.dialogo_var.set(f"Você encontrou: {recompensa}.")
+        self._desenhar_opcoes_estantes_sala2()
+
+    def _remover_opcoes_estantes_sala2(self):
+        self.canvas.delete("estantes_sala2_popup")
+        self.canvas.configure(cursor="")
+        self._estante_sala2_interativa = None
+
+    def _verificar_interacao_capsula_esquerda(self):
+        perto = _ponto_dentro(
+            ZONA_CAPSULA_ESQUERDA,
+            self.player_x,
+            self.player_y,
+        )
+        if not perto or self.modulo_capsula_retirado:
+            if self._capsula_popup_visivel:
+                self._remover_opcoes_capsula_esquerda()
+            return
+        if not self._capsula_popup_visivel:
+            self._capsula_popup_visivel = True
+            self._desenhar_opcoes_capsula_esquerda()
+
+    def _desenhar_opcoes_capsula_esquerda(self):
+        if not self._capsula_popup_visivel:
+            return
+        self.canvas.delete("capsula_esquerda_popup")
+        escala_x = self.canvas.winfo_width() / LARGURA_MUNDO
+        escala_y = self.canvas.winfo_height() / ALTURA_MUNDO
+        centro_x = 165 * escala_x
+        topo = 300 * escala_y
+        tem_ferramenta = self.inventario.get(NOME_CHAVE_FENDA, 0) > 0
+        texto = (
+            "Retirar módulo (D20 10+)"
+            if tem_ferramenta
+            else "Precisa de uma Chave de Fenda"
+        )
+        self.canvas.create_rectangle(
+            centro_x - 145 * escala_x,
+            topo,
+            centro_x + 145 * escala_x,
+            topo + 72 * escala_y,
+            fill=FUNDO,
+            outline=DESTAQUE,
+            width=2,
+            tags=("capsula_esquerda_popup",),
+        )
+        self.canvas.create_text(
+            centro_x,
+            topo + 20 * escala_y,
+            text="CÁPSULA DESATIVADA",
+            fill=TEXTO,
+            font=("Consolas", 10, "bold"),
+            tags=("capsula_esquerda_popup",),
+        )
+        acao_tag = "capsula_esquerda_acao"
+        self.canvas.create_text(
+            centro_x,
+            topo + 49 * escala_y,
+            text=texto,
+            fill=DESTAQUE if tem_ferramenta else SUAVE,
+            font=("Consolas", 9, "bold"),
+            tags=("capsula_esquerda_popup", acao_tag),
+        )
+        if tem_ferramenta:
+            self.canvas.tag_bind(
+                acao_tag,
+                "<Button-1>",
+                lambda _event: self._iniciar_retirada_modulo_capsula(),
+            )
+            self.canvas.tag_bind(
+                acao_tag,
+                "<Enter>",
+                lambda _event: self.canvas.configure(cursor="hand2"),
+            )
+            self.canvas.tag_bind(
+                acao_tag,
+                "<Leave>",
+                lambda _event: self.canvas.configure(cursor=""),
+            )
+        self.canvas.tag_raise("capsula_esquerda_popup")
+
+    def _remover_opcoes_capsula_esquerda(self):
+        self.canvas.delete("capsula_esquerda_popup")
+        self.canvas.configure(cursor="")
+        self._capsula_popup_visivel = False
+
+    def _iniciar_retirada_modulo_capsula(self):
+        if (
+            self._estado != "mundo"
+            or self.sala_atual != "sala_hibernacao"
+            or self.modulo_capsula_retirado
+            or self.inventario.get(NOME_CHAVE_FENDA, 0) < 1
+            or not _ponto_dentro(
+                ZONA_CAPSULA_ESQUERDA,
+                self.player_x,
+                self.player_y,
+            )
+        ):
+            return
+        self._remover_opcoes_capsula_esquerda()
+        self._iniciar_teste_interacao(
+            10,
+            "RETIRAR MÓDULO DA CÁPSULA",
+            self._resultado_retirada_modulo_capsula,
+        )
+
+    def _resultado_retirada_modulo_capsula(self, sucesso, _resultado):
+        if sucesso:
+            self.modulo_capsula_retirado = True
+            self.pecas.add(NOME_MODULO_CAPSULA)
+            self.dialogo_var.set(
+                f"Você retirou {NOME_MODULO_CAPSULA} da cápsula."
+            )
+        else:
+            self.dialogo_var.set(
+                "O módulo continua preso. Você pode tentar novamente."
+            )
+        if not self.modulo_capsula_retirado and _ponto_dentro(
+            ZONA_CAPSULA_ESQUERDA,
+            self.player_x,
+            self.player_y,
+        ):
+            self._capsula_popup_visivel = True
+            self._desenhar_opcoes_capsula_esquerda()
+
+    def _iniciar_combate_anomalia_sala2(self):
+        if (
+            self._estado != "mundo"
+            or self.sala_atual != "sala_2"
+            or self.anomalia_sala2_derrotada
+        ):
+            return
+
+        self._estado = "combate"
+        self.teclas_pressionadas.clear()
+        self.audio_passos.parar()
+        if self._glitch_popup_visivel:
+            self._remover_opcoes_glitch_sala2()
+        self._estante_sala2_interativa = None
+        self._janela_combate = tk.Frame(
+            self.container,
+            bg="#050912",
+            takefocus=True,
+        )
+        self._janela_combate.place(
+            relx=0,
+            rely=0,
+            relwidth=1,
+            relheight=1,
+        )
+        painel = tk.Frame(
+            self._janela_combate,
+            bg=PAINEL,
+            padx=26,
+            pady=22,
+            highlightbackground="#B0204A",
+            highlightthickness=2,
+        )
+        painel.place(relx=0.5, rely=0.5, anchor="center")
+        tk.Label(
+            painel,
+            text="ANOMALIA — GLITCH",
+            fg="#FF5C69",
+            bg=PAINEL,
+            font=("Consolas", 22, "bold"),
+        ).pack(pady=(0, 10))
+        tk.Label(
+            painel,
+            text="A criatura bloqueia o caminho. Ataque ou use um item.",
+            fg=TEXTO,
+            bg=PAINEL,
+            font=("Consolas", 11),
+        ).pack(pady=(0, 12))
+        self._combate_estado_label = tk.Label(
+            painel,
+            text="",
+            fg=DESTAQUE,
+            bg=PAINEL,
+            font=("Consolas", 12, "bold"),
+        )
+        self._combate_estado_label.pack(pady=(0, 12))
+        self._combate_mensagem_label = tk.Label(
+            painel,
+            text="",
+            fg=TEXTO,
+            bg=PAINEL,
+            font=("Consolas", 10),
+            justify="center",
+            wraplength=500,
+        )
+        self._combate_mensagem_label.pack(pady=(0, 12))
+
+        botoes = tk.Frame(painel, bg=PAINEL)
+        botoes.pack(fill="x")
+        self._combate_botoes = {}
+        acoes = (
+            ("punho", "Atacar com as mãos", self._acao_combate_ataque),
+            (
+                "Kit Médico",
+                "Usar Kit Médico",
+                lambda: self._acao_combate_item("Kit Médico"),
+            ),
+            (
+                "Adrenalina",
+                "Usar Adrenalina",
+                lambda: self._acao_combate_item("Adrenalina"),
+            ),
+            ("EMP", "Usar EMP", lambda: self._acao_combate_item("EMP")),
+        )
+        for indice, (chave, texto, comando) in enumerate(acoes):
+            botao = tk.Button(
+                botoes,
+                text=texto,
+                command=comando,
+                fg="#050C14" if chave == "punho" else TEXTO,
+                bg=DESTAQUE if chave == "punho" else "#263244",
+                activebackground="#2BC5A5",
+                relief="flat",
+                font=("Consolas", 10, "bold"),
+                padx=10,
+                pady=8,
+            )
+            botao.grid(row=indice // 2, column=indice % 2, padx=5, pady=5, sticky="ew")
+            self._combate_botoes[chave] = botao
+        botoes.grid_columnconfigure(0, weight=1)
+        botoes.grid_columnconfigure(1, weight=1)
+        self._atualizar_tela_combate("O Glitch avança na sua direção.")
+        self._janela_combate.lift()
+        self._janela_combate.focus_set()
+
+    def _atualizar_tela_combate(self, mensagem):
+        self._combate_estado_label.configure(
+            text=(
+                f"{self.jogador.nome}: {self.jogador.hp} HP"
+                f"     |     Glitch: {self.anomalia_sala2.hp} HP"
+            )
+        )
+        self._combate_mensagem_label.configure(text=mensagem)
+        for item in ITENS_USAVEIS:
+            botao = self._combate_botoes[item]
+            pode_usar = (
+                self.inventario.get(item, 0) > 0
+                and self.jogador.hp < CLASSES[self.classe_atual]["hp"]
+            )
+            botao.configure(state="normal" if pode_usar else "disabled")
+        self._combate_botoes["EMP"].configure(
+            state=(
+                "normal"
+                if self.inventario.get("EMP", 0) > 0
+                else "disabled"
+            )
+        )
+
+    @staticmethod
+    def _resumo_ataque_combate(atacante, resultado):
+        if resultado.falha_critica:
+            return f"{atacante} errou (D20 {resultado.dado})."
+        if resultado.critico:
+            return (
+                f"{atacante} acertou um crítico (D20 {resultado.dado}) "
+                f"e causou {resultado.dano} de dano."
+            )
+        return (
+            f"{atacante} tirou {resultado.dado} no D20 "
+            f"e causou {resultado.dano} de dano."
+        )
+
+    def _acao_combate_ataque(self):
+        if self._estado != "combate":
+            return
+        resultado = atacar(self.jogador, self.anomalia_sala2)
+        self.animador_d20.mostrar(resultado.dado)
+        mensagem = self._resumo_ataque_combate("Seu soco", resultado)
+        self._resolver_turno_anomalia_sala2(mensagem)
+
+    def _acao_combate_item(self, nome):
+        if self._estado != "combate" or self.inventario.get(nome, 0) < 1:
+            return
+        if nome in ITENS_USAVEIS:
+            hp_maximo = CLASSES[self.classe_atual]["hp"]
+            if self.jogador.hp >= hp_maximo:
+                return
+            cura = min(
+                ITENS_USAVEIS[nome],
+                hp_maximo - self.jogador.hp,
+            )
+            self.jogador.hp += cura
+            self._consumir_item(nome)
+            self._atualizar_hud()
+            mensagem = f"{nome}: você recuperou {cura} HP."
+        elif nome == "EMP":
+            self._consumir_item(nome)
+            self._anomalia_paralisada = True
+            mensagem = "O EMP atinge o Glitch e o paralisa."
+        else:
+            return
+        self._resolver_turno_anomalia_sala2(mensagem)
+
+    def _resolver_turno_anomalia_sala2(self, mensagem):
+        if self.anomalia_sala2.hp <= 0:
+            self._vencer_combate_anomalia_sala2()
+            return
+        if self._anomalia_paralisada:
+            self._anomalia_paralisada = False
+            self._atualizar_tela_combate(
+                f"{mensagem}\nO Glitch perde este turno por causa do EMP."
+            )
+            return
+
+        resultado = atacar(self.anomalia_sala2, self.jogador)
+        self.animador_d20.mostrar(resultado.dado)
+        mensagem_inimigo = self._resumo_ataque_combate(
+            "O Glitch",
+            resultado,
+        )
+        if self.jogador.hp <= 0:
+            self._atualizar_hud()
+            self._fechar_combate_anomalia_sala2()
+            self._mostrar_tela_morte(
+                TEXTO_MORTE_GLITCH,
+                "VOCÊ FOI CONSUMIDO",
+            )
+            return
+        self._atualizar_hud()
+        self._atualizar_tela_combate(
+            f"{mensagem}\n{mensagem_inimigo}"
+        )
+
+    def _vencer_combate_anomalia_sala2(self):
+        self.anomalia_sala2_derrotada = True
+        self._fechar_combate_anomalia_sala2()
+        self.dialogo_var.set(
+            "O Glitch cai. As três estantes estão livres para investigação."
+        )
+        self._desenhar_anomalia_sala2()
+
+    def _fechar_combate_anomalia_sala2(self):
+        if getattr(self, "_janela_combate", None) is not None:
+            self._janela_combate.destroy()
+            self._janela_combate = None
+        self._estado = "mundo"
+        self.teclas_pressionadas.clear()
+        self.canvas.focus_set()
 
     def _ligar_tv_sala1(self):
         if self.tv_sala1_ligada:
@@ -1902,6 +2646,8 @@ class Jogo:
                 self._porta_ocupada = porta
                 if porta["numero"] == 1:
                     self._carregar_sala("sala_1", (480, 430))
+                elif porta["numero"] == 2:
+                    self._carregar_sala("sala_2", (480, 480))
                 elif porta["numero"] == 3:
                     if self.porta3_aberta:
                         self._abrir_porta(3)
@@ -2176,11 +2922,11 @@ class Jogo:
                 "A porta reforçada dava para o exterior. Ao atravessá-la, "
                 "uma horda de anomalias cercou você antes que pudesse voltar."
             )
-            titulo = "VOCÊ MORREU"
-            self._estado = "morte"
+            self._remover_opcoes_porta3()
+            self._mostrar_tela_morte(texto, "VOCÊ MORREU")
+            return
         else:
             texto = f"Você entrou na porta {numero}"
-            titulo = texto.upper()
             self._estado = "porta"
         self.teclas_pressionadas.clear()
         self.audio_passos.parar()
@@ -2188,51 +2934,95 @@ class Jogo:
 
         self.tela_porta = tk.Frame(self.container, bg="black", takefocus=True)
         self.tela_porta.place(relx=0, rely=0, relwidth=1, relheight=1)
-        if numero == 3:
-            tk.Label(
-                self.tela_porta,
-                text=titulo,
-                fg="#FF5C69",
-                bg="black",
-                font=("Consolas", 34, "bold"),
-            ).pack(pady=(150, 24))
-            tk.Label(
-                self.tela_porta,
-                text=texto,
-                fg="white",
-                bg="black",
-                font=("Consolas", 17),
-                justify="center",
-                wraplength=800,
-            ).pack(padx=40, pady=12)
-            tk.Button(
-                self.tela_porta,
-                text="VOLTAR AO MENU",
-                command=self._voltar_ao_menu_apos_morte,
-                fg="#090D16",
-                bg=DESTAQUE,
-                font=("Consolas", 13, "bold"),
-                padx=20,
-                pady=8,
-            ).pack(pady=32)
-            self.tela_porta.bind(
-                "<KeyPress-Escape>",
-                self._voltar_ao_menu_apos_morte,
-            )
-        else:
-            tk.Label(
-                self.tela_porta,
-                text=f"{texto}\n\nPressione ESC para voltar ao corredor",
-                fg="white",
-                bg="black",
-                font=("Consolas", 24, "bold"),
-                justify="center",
-            ).pack(expand=True)
-            self.tela_porta.bind("<KeyPress-Escape>", self._fechar_porta)
+        tk.Label(
+            self.tela_porta,
+            text=f"{texto}\n\nPressione ESC para voltar ao corredor",
+            fg="white",
+            bg="black",
+            font=("Consolas", 24, "bold"),
+            justify="center",
+        ).pack(expand=True)
+        self.tela_porta.bind("<KeyPress-Escape>", self._fechar_porta)
         self.tela_porta.lift()
         self.tela_porta.focus_set()
 
+    def _mostrar_tela_morte(self, texto, titulo):
+        self._estado = "morte"
+        self.teclas_pressionadas.clear()
+        self.audio_passos.parar()
+        self._parar_animacao_anomalia_sala2()
+        if getattr(self, "_janela_combate", None) is not None:
+            self._janela_combate.destroy()
+            self._janela_combate = None
+
+        self.tela_porta = tk.Frame(self.container, bg="black", takefocus=True)
+        self.tela_porta.place(relx=0, rely=0, relwidth=1, relheight=1)
+        tk.Label(
+            self.tela_porta,
+            text=titulo,
+            fg="#FF5C69",
+            bg="black",
+            font=("Consolas", 34, "bold"),
+        ).pack(pady=(150, 24))
+        self._morte_texto = texto
+        self._morte_indice = 0
+        self._morte_texto_label = tk.Label(
+            self.tela_porta,
+            text="",
+            fg="white",
+            bg="black",
+            font=("Consolas", 17),
+            justify="center",
+            wraplength=800,
+        )
+        self._morte_texto_label.pack(padx=40, pady=12)
+        tk.Button(
+            self.tela_porta,
+            text="VOLTAR AO MENU",
+            command=self._voltar_ao_menu_apos_morte,
+            fg="#090D16",
+            bg=DESTAQUE,
+            font=("Consolas", 13, "bold"),
+            padx=20,
+            pady=8,
+        ).pack(pady=32)
+        self.tela_porta.bind(
+            "<KeyPress-Escape>",
+            self._voltar_ao_menu_apos_morte,
+        )
+        self.tela_porta.lift()
+        self.tela_porta.focus_set()
+        self._morte_after_id = self.tela_porta.after(
+            28,
+            self._animar_texto_morte,
+        )
+
+    def _animar_texto_morte(self):
+        if self._estado != "morte" or self.tela_porta is None:
+            self._morte_after_id = None
+            return
+        self._morte_indice += 1
+        self._morte_texto_label.configure(
+            text=self._morte_texto[: self._morte_indice]
+        )
+        if self._morte_indice < len(self._morte_texto):
+            self._morte_after_id = self.tela_porta.after(
+                28,
+                self._animar_texto_morte,
+            )
+        else:
+            self._morte_after_id = None
+
+    def _cancelar_animacao_morte(self):
+        identificador = getattr(self, "_morte_after_id", None)
+        if identificador is not None and getattr(self, "tela_porta", None) is not None:
+            self.tela_porta.after_cancel(identificador)
+            self._morte_after_id = None
+
     def _voltar_ao_menu_apos_morte(self, event=None):
+        self._cancelar_animacao_morte()
+        self._parar_animacao_anomalia_sala2()
+        self._estado = "menu"
         self.ao_menu()
         return "break"
 
@@ -2247,6 +3037,16 @@ class Jogo:
     def _carregar_sala(self, sala, spawn):
         if self._objeto_interativo_sala1 == "armarios":
             self._remover_opcoes_armarios_sala1()
+        if self._objeto_interativo_sala1 == "cofre":
+            self._remover_opcoes_cofre_sala1()
+        if getattr(self, "_estante_sala2_interativa", None) is not None:
+            self._remover_opcoes_estantes_sala2()
+        if getattr(self, "_glitch_popup_visivel", False):
+            self._remover_opcoes_glitch_sala2()
+        if getattr(self, "_capsula_popup_visivel", False):
+            self._remover_opcoes_capsula_esquerda()
+        if self.sala_atual == "sala_2" and sala != "sala_2":
+            self._parar_animacao_anomalia_sala2()
         self._estado = "mundo"
         self.sala_atual = sala
         self.player_x, self.player_y = spawn
@@ -2260,6 +3060,7 @@ class Jogo:
         self._atualizar_nome_sala()
         self._ultimo_tamanho = None
         self._redimensionar_cena()
+        self._iniciar_animacao_anomalia_sala2()
         self.canvas.focus_set()
 
     def _rolar_teste(self, event=None):

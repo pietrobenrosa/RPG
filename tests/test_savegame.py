@@ -9,6 +9,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
 from jogo import (
     Jogo,
+    NOME_MODULO_CAPSULA,
     NOME_PECA_COFRE_SALA1,
     NOME_PECA_FOGUETE_SALA1,
 )
@@ -180,6 +181,68 @@ class TestSaveGame(unittest.TestCase):
             {f"Código do Cofre: {jogo.codigo_cofre_sala1}": 1},
         )
 
+    def test_restaurar_progresso_preserva_sala2_e_modulo_da_capsula(self):
+        dados = {
+            "versao": VERSAO_SAVE,
+            "jogador": {
+                "nome": "Vance",
+                "classe": "Engenheiro",
+                "hp": 22,
+                "ataque": 6,
+                "defesa": 8,
+                "nivel": 1,
+            },
+            "sala_atual": "sala_2",
+            "posicao": [480, 480],
+            "direcao": "baixo",
+            "inventario": {"Chave de Prata": 1, "Chave de Fenda": 1},
+            "itens_no_chao": [],
+            "xp": 0,
+            "xp_proximo_nivel": 100,
+            "pecas": [],
+            "ataque_extra": 0,
+            "anomalia_sala2_derrotada": True,
+            "estantes_sala2_investigadas": [0, 2],
+            "modulo_capsula_retirado": True,
+        }
+        jogo = Jogo.__new__(Jogo)
+        jogo._iniciar_mapa = Mock()
+
+        jogo._restaurar_progresso(dados)
+
+        self.assertEqual(jogo.sala_atual, "sala_2")
+        self.assertTrue(jogo.anomalia_sala2_derrotada)
+        self.assertEqual(jogo.estantes_sala2_investigadas, [0, 2])
+        self.assertTrue(jogo.modulo_capsula_retirado)
+        self.assertIn(NOME_MODULO_CAPSULA, jogo.pecas)
+
+    def test_save_rejeita_indice_de_estante_repetido(self):
+        dados = {
+            "versao": VERSAO_SAVE,
+            "jogador": {
+                "nome": "Vance",
+                "classe": "Engenheiro",
+                "hp": 22,
+                "ataque": 6,
+                "defesa": 8,
+                "nivel": 1,
+            },
+            "sala_atual": "sala_2",
+            "posicao": [480, 480],
+            "direcao": "baixo",
+            "inventario": {},
+            "itens_no_chao": [],
+            "xp": 0,
+            "xp_proximo_nivel": 100,
+            "pecas": [],
+            "ataque_extra": 0,
+            "estantes_sala2_investigadas": [1, 1],
+        }
+        jogo = Jogo.__new__(Jogo)
+
+        with self.assertRaisesRegex(ValueError, "estantes"):
+            jogo._restaurar_progresso(dados)
+
     def test_dados_salvos_incluem_progresso_da_porta_reforcada(self):
         jogo = Jogo.__new__(Jogo)
         jogo.jogador = Mock(
@@ -198,6 +261,9 @@ class TestSaveGame(unittest.TestCase):
         jogo.itens_no_chao = []
         jogo.porta3_tentativa_usada = True
         jogo.porta3_aberta = False
+        jogo.anomalia_sala2_derrotada = True
+        jogo.estantes_sala2_investigadas = [0, 2]
+        jogo.modulo_capsula_retirado = True
         jogo.tv_sala1_ligada = True
         jogo.armarios_sala1_investigados = True
         jogo.armarios_sala1_arrombados = False
@@ -213,6 +279,9 @@ class TestSaveGame(unittest.TestCase):
 
         self.assertTrue(dados["porta3_tentativa_usada"])
         self.assertFalse(dados["porta3_aberta"])
+        self.assertTrue(dados["anomalia_sala2_derrotada"])
+        self.assertEqual(dados["estantes_sala2_investigadas"], [0, 2])
+        self.assertTrue(dados["modulo_capsula_retirado"])
         self.assertTrue(dados["tv_sala1_ligada"])
         self.assertTrue(dados["armarios_sala1_investigados"])
         self.assertFalse(dados["armarios_sala1_arrombados"])

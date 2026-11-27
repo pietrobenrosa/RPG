@@ -3,20 +3,22 @@
   "jogador": {
     "nome": "Vance",
     "classe": "Segurança",
-    "hp": 40,
+    "hp": 30,
     "ataque": 9,
     "defesa": 5,
     "nivel": 1
   },
   "sala_atual": "corredor",
   "posicao": [
-    437.10000000000025,
+    464.4000000000001,
     430.0
   ],
   "direcao": "esquerda",
   "inventario": {
     "Kit Médico": 1,
-    "Adrenalina": 1
+    "Adrenalina": 1,
+    "Chave de Prata": 1,
+    "Chave de Fenda": 1
   },
   "itens_no_chao": [
     {
@@ -31,11 +33,20 @@
   "tv_sala1_ligada": false,
   "armarios_sala1_investigados": false,
   "armarios_sala1_arrombados": false,
-  "codigo_cofre_sala1": "6162",
+  "codigo_cofre_sala1": "8899",
   "quadro_sala1_investigado": false,
   "cofre_sala1_aberto": false,
+  "anomalia_sala2_derrotada": true,
+  "estantes_sala2_investigadas": [
+    1,
+    0,
+    2
+  ],
+  "modulo_capsula_retirado": true,
   "xp": 0,
   "xp_proximo_nivel": 100,
-  "pecas": [],
+  "pecas": [
+    "Módulo de Energia da Cápsula"
+  ],
   "ataque_extra": 0
 }

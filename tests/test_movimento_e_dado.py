@@ -21,16 +21,23 @@ from jogo import (
     ITEM_CHAVE_DOURADA,
     ITENS_USAVEIS,
     Jogo,
+    NOME_CHAVE_FENDA,
+    NOME_CHAVE_PRATA,
+    NOME_MODULO_CAPSULA,
     NOME_PECA_COFRE_SALA1,
     NOME_PECA_FOGUETE_SALA1,
     PORTAS_CORREDOR,
+    POSICAO_GLITCH_SALA2,
+    RECOMPENSAS_ESTANTES_SALA2,
     SPAWN_INICIAL,
     TAMANHO_PERSONAGEM,
+    TEXTO_MORTE_GLITCH,
     VELOCIDADE_JOGADOR,
     TEXTO_TRANSMISSAO_SALA1,
     ZONA_QUADRO_SALA1,
     ZONA_TV_SALA1,
     ZONAS_ARMARIOS_SALA1,
+    ZONAS_ESTANTES_SALA2,
     _ampliar_desenho_icone,
     _numero_finito,
 )
@@ -58,7 +65,7 @@ class CanvasFalso:
         return self.agendamentos.pop(identificador)
 
 
-class TestMovimentoESalas(unittest.TestCase):
+class TestMovimentoBasico(unittest.TestCase):
     def test_colisao_bloqueia_capsula_sem_bloquear_corredor_da_sala(self):
         jogo = Jogo.__new__(Jogo)
         jogo.sala_atual = "sala_hibernacao"
@@ -173,6 +180,9 @@ class TestMovimentoESalas(unittest.TestCase):
             if porta["numero"] == 1:
                 jogo._carregar_sala.assert_called_once_with("sala_1", (480, 430))
                 jogo._abrir_porta.assert_not_called()
+            elif porta["numero"] == 2:
+                jogo._carregar_sala.assert_called_once_with("sala_2", (480, 480))
+                jogo._abrir_porta.assert_not_called()
             elif porta["numero"] == 3:
                 jogo._abrir_porta.assert_not_called()
                 jogo._desenhar_opcoes_porta3.assert_called_once_with()
@@ -254,6 +264,280 @@ class TestMovimentoESalas(unittest.TestCase):
         self.assertNotIn("Chave Dourada", jogo.inventario)
         jogo._abrir_porta.assert_called_once_with(3)
 
+
+class TestSala2(unittest.TestCase):
+    def test_sala2_tem_cenario_e_colisoes_nas_estantes(self):
+        self.assertEqual(IMAGENS_SALAS["sala_2"].name, "Sala2.png")
+        self.assertTrue(IMAGENS_SALAS["sala_2"].is_file())
+        self.assertEqual(len(ZONAS_ESTANTES_SALA2), 3)
+        jogo = Jogo.__new__(Jogo)
+        jogo.sala_atual = "sala_2"
+
+        self.assertFalse(jogo._posicao_valida(270, 250))
+        self.assertTrue(jogo._posicao_valida(270, 280))
+
+    @patch(
+        "jogo.ImageTk.PhotoImage",
+        side_effect=("frame_1", "frame_2", "frame_3"),
+    )
+    def test_glitch_fica_abaixo_do_personagem_no_canvas(self, _photo_image):
+        jogo = Jogo.__new__(Jogo)
+        jogo.sala_atual = "sala_2"
+        jogo.anomalia_sala2_derrotada = False
+        jogo._sprites_anomalia_originais = (Mock(), Mock(), Mock())
+        jogo._sprites_anomalia_redimensionados = ()
+        jogo._tamanho_sprites_anomalia = None
+        jogo._anomalia_frame = 0
+        jogo._anomalia_canvas = None
+        jogo.player = 37
+        jogo.canvas = Mock()
+        jogo.canvas.winfo_width.return_value = 960
+        jogo.canvas.winfo_height.return_value = 540
+        jogo.canvas.create_image.return_value = 55
+
+        jogo._desenhar_anomalia_sala2()
+
+        jogo.canvas.tag_lower.assert_called_once_with(55, 37)
+
+    def test_sair_da_sala2_volta_ao_corredor(self):
+        jogo = Jogo.__new__(Jogo)
+        jogo.sala_atual = "sala_2"
+        jogo.player_x, jogo.player_y = 480, 510
+        jogo._carregar_sala = Mock()
+
+        jogo._verificar_teleporte()
+
+        jogo._carregar_sala.assert_called_once_with("corredor", (440, 350))
+
+    def test_proximidade_do_glitch_mostra_interacao_sem_iniciar_luta(self):
+        jogo = Jogo.__new__(Jogo)
+        jogo._estado = "mundo"
+        jogo.sala_atual = "sala_2"
+        jogo.anomalia_sala2_derrotada = False
+        jogo.player_x, jogo.player_y = POSICAO_GLITCH_SALA2[0], 442
+        jogo._glitch_popup_visivel = False
+        jogo._desenhar_opcoes_glitch_sala2 = Mock()
+        jogo._iniciar_combate_anomalia_sala2 = Mock()
+
+        jogo._verificar_interacoes_sala2()
+
+        self.assertTrue(jogo._glitch_popup_visivel)
+        jogo._desenhar_opcoes_glitch_sala2.assert_called_once_with()
+        jogo._iniciar_combate_anomalia_sala2.assert_not_called()
+
+    def test_clicar_na_interacao_do_glitch_inicia_a_luta(self):
+        jogo = Jogo.__new__(Jogo)
+        jogo._estado = "mundo"
+        jogo.sala_atual = "sala_2"
+        jogo.anomalia_sala2_derrotada = False
+        jogo._glitch_popup_visivel = True
+        jogo.player_x, jogo.player_y = POSICAO_GLITCH_SALA2
+        jogo._remover_opcoes_glitch_sala2 = Mock()
+        jogo._iniciar_combate_anomalia_sala2 = Mock()
+
+        jogo._interagir_com_glitch_sala2()
+
+        jogo._remover_opcoes_glitch_sala2.assert_called_once_with()
+        jogo._iniciar_combate_anomalia_sala2.assert_called_once_with()
+
+    @patch("jogo.secrets.choice", return_value=2)
+    def test_animacao_do_glitch_escolhe_outro_frame_sem_repetir(self, escolher):
+        jogo = Jogo.__new__(Jogo)
+        jogo.sala_atual = "sala_2"
+        jogo.anomalia_sala2_derrotada = False
+        jogo._anomalia_frame = 0
+        jogo._desenhar_anomalia_sala2 = Mock()
+        jogo._iniciar_animacao_anomalia_sala2 = Mock()
+
+        jogo._avancar_animacao_anomalia_sala2()
+
+        self.assertEqual(jogo._anomalia_frame, 2)
+        escolher.assert_called_once_with([1, 2])
+        jogo._iniciar_animacao_anomalia_sala2.assert_called_once_with()
+
+    @patch("jogo.secrets.randbelow", side_effect=[0, 300])
+    def test_intervalo_da_animacao_do_glitch_fica_entre_cem_e_quatrocentos_ms(
+        self,
+        escolher_intervalo,
+    ):
+        jogo = Jogo.__new__(Jogo)
+        jogo.sala_atual = "sala_2"
+        jogo.anomalia_sala2_derrotada = False
+        jogo._anomalia_after_id = None
+        jogo._desenhar_anomalia_sala2 = Mock()
+        jogo.container = Mock()
+
+        jogo._iniciar_animacao_anomalia_sala2()
+        jogo._anomalia_after_id = None
+        jogo._iniciar_animacao_anomalia_sala2()
+
+        self.assertEqual(
+            [chamada.args[0] for chamada in jogo.container.after.call_args_list],
+            [100, 400],
+        )
+        self.assertEqual(
+            escolher_intervalo.call_args_list,
+            [call(301), call(301)],
+        )
+
+    def test_estantes_entregam_recompensas_somente_uma_vez(self):
+        jogo = Jogo.__new__(Jogo)
+        jogo._estado = "mundo"
+        jogo.anomalia_sala2_derrotada = True
+        jogo.estantes_sala2_investigadas = []
+        jogo.inventario = {}
+        jogo.dialogo_var = Mock()
+        jogo._desenhar_opcoes_estantes_sala2 = Mock()
+
+        jogo.player_x, jogo.player_y = 270, 280
+        jogo._investigar_estante_sala2(0)
+        jogo._investigar_estante_sala2(0)
+        self.assertEqual(jogo.inventario, {NOME_CHAVE_PRATA: 1})
+
+        jogo.player_x, jogo.player_y = 477, 280
+        jogo._investigar_estante_sala2(1)
+        self.assertEqual(jogo.inventario, {NOME_CHAVE_PRATA: 1})
+
+        jogo.player_x, jogo.player_y = 697, 280
+        jogo._investigar_estante_sala2(2)
+        self.assertEqual(
+            jogo.inventario,
+            {NOME_CHAVE_PRATA: 1, NOME_CHAVE_FENDA: 1},
+        )
+        self.assertEqual(
+            RECOMPENSAS_ESTANTES_SALA2,
+            (NOME_CHAVE_PRATA, None, NOME_CHAVE_FENDA),
+        )
+
+    def test_chave_de_fenda_habilita_teste_d10_na_capsula_esquerda(self):
+        jogo = Jogo.__new__(Jogo)
+        jogo._estado = "mundo"
+        jogo.sala_atual = "sala_hibernacao"
+        jogo.modulo_capsula_retirado = False
+        jogo.inventario = {}
+        jogo.player_x, jogo.player_y = 85, 400
+        jogo._remover_opcoes_capsula_esquerda = Mock()
+        jogo._iniciar_teste_interacao = Mock()
+
+        jogo._iniciar_retirada_modulo_capsula()
+        jogo._iniciar_teste_interacao.assert_not_called()
+
+        jogo.inventario[NOME_CHAVE_FENDA] = 1
+        jogo._iniciar_retirada_modulo_capsula()
+        chamada = jogo._iniciar_teste_interacao.call_args
+        self.assertEqual(chamada.args[:2], (10, "RETIRAR MÓDULO DA CÁPSULA"))
+
+    def test_sucesso_na_capsula_guarda_o_modulo_como_peca(self):
+        jogo = Jogo.__new__(Jogo)
+        jogo.modulo_capsula_retirado = False
+        jogo.pecas = set()
+        jogo.dialogo_var = Mock()
+        jogo.player_x, jogo.player_y = 85, 400
+
+        jogo._resultado_retirada_modulo_capsula(True, 10)
+
+        self.assertTrue(jogo.modulo_capsula_retirado)
+        self.assertIn(NOME_MODULO_CAPSULA, jogo.pecas)
+
+    def test_emp_faz_o_glitch_perder_um_turno(self):
+        jogo = Jogo.__new__(Jogo)
+        jogo.anomalia_sala2 = Mock(hp=10)
+        jogo._anomalia_paralisada = True
+        jogo._atualizar_tela_combate = Mock()
+
+        jogo._resolver_turno_anomalia_sala2("EMP ativado.")
+
+        self.assertFalse(jogo._anomalia_paralisada)
+        jogo._atualizar_tela_combate.assert_called_once_with(
+            "EMP ativado.\nO Glitch perde este turno por causa do EMP."
+        )
+
+    @patch("jogo.atacar")
+    def test_turno_da_anomalia_ataca_o_jogador_com_d20(self, atacar):
+        from combate import ResultadoAtaque
+
+        atacar.return_value = ResultadoAtaque(dado=11, dano=4)
+        jogo = Jogo.__new__(Jogo)
+        jogo.anomalia_sala2 = Mock(hp=10)
+        jogo.jogador = Mock(hp=20)
+        jogo._anomalia_paralisada = False
+        jogo.animador_d20 = Mock()
+        jogo._atualizar_hud = Mock()
+        jogo._atualizar_tela_combate = Mock()
+
+        jogo._resolver_turno_anomalia_sala2("Você atacou.")
+
+        atacar.assert_called_once_with(jogo.anomalia_sala2, jogo.jogador)
+        jogo.animador_d20.mostrar.assert_called_once_with(11)
+        jogo._atualizar_tela_combate.assert_called_once_with(
+            "Você atacou.\nO Glitch tirou 11 no D20 e causou 4 de dano."
+        )
+
+    @patch("jogo.atacar")
+    def test_hp_zero_mostra_a_morte_dramatica(self, atacar):
+        from combate import ResultadoAtaque
+
+        atacar.return_value = ResultadoAtaque(dado=12, dano=4)
+        jogo = Jogo.__new__(Jogo)
+        jogo.anomalia_sala2 = Mock(hp=10)
+        jogo.jogador = Mock(hp=0)
+        jogo._anomalia_paralisada = False
+        jogo.animador_d20 = Mock()
+        jogo._atualizar_hud = Mock()
+        jogo._fechar_combate_anomalia_sala2 = Mock()
+        jogo._mostrar_tela_morte = Mock()
+
+        jogo._resolver_turno_anomalia_sala2("Você atacou.")
+
+        jogo._fechar_combate_anomalia_sala2.assert_called_once_with()
+        jogo._mostrar_tela_morte.assert_called_once_with(
+            TEXTO_MORTE_GLITCH,
+            "VOCÊ FOI CONSUMIDO",
+        )
+
+    @patch("jogo.atacar")
+    def test_soco_usa_resolucao_d20_e_mostra_resultado(self, atacar):
+        from combate import ResultadoAtaque
+
+        resultado = ResultadoAtaque(dado=12, dano=6)
+        atacar.return_value = resultado
+        jogo = Jogo.__new__(Jogo)
+        jogo._estado = "combate"
+        jogo.jogador = Mock()
+        jogo.anomalia_sala2 = Mock()
+        jogo.animador_d20 = Mock()
+        jogo._resolver_turno_anomalia_sala2 = Mock()
+
+        jogo._acao_combate_ataque()
+
+        atacar.assert_called_once_with(jogo.jogador, jogo.anomalia_sala2)
+        jogo.animador_d20.mostrar.assert_called_once_with(12)
+        jogo._resolver_turno_anomalia_sala2.assert_called_once_with(
+            "Seu soco tirou 12 no D20 e causou 6 de dano."
+        )
+
+    def test_texto_da_morte_e_digitado_gradualmente(self):
+        jogo = Jogo.__new__(Jogo)
+        jogo._estado = "morte"
+        jogo.tela_porta = Mock()
+        jogo._morte_texto = "abc"
+        jogo._morte_indice = 0
+        jogo._morte_texto_label = Mock()
+
+        jogo._animar_texto_morte()
+        jogo._animar_texto_morte()
+        jogo._animar_texto_morte()
+
+        self.assertEqual(
+            [
+                chamada.kwargs["text"]
+                for chamada in jogo._morte_texto_label.configure.call_args_list
+            ],
+            ["a", "ab", "abc"],
+        )
+
+
+class TestMovimentoESalas(unittest.TestCase):
     def test_teste_de_arrombamento_tem_uma_tentativa(self):
         jogo = Jogo.__new__(Jogo)
         jogo._estado = "mundo"
@@ -381,7 +665,8 @@ class TestMovimentoESalas(unittest.TestCase):
         )
         textos = [chamada.kwargs.get("text", "") for chamada in label.call_args_list]
         self.assertIn("VOCÊ MORREU", textos)
-        self.assertTrue(any("anomalias" in texto for texto in textos))
+        self.assertEqual(label.call_args_list[1].kwargs["text"], "")
+        self.assertIn("anomalias", jogo._morte_texto)
         button.assert_called_once()
         jogo._voltar_ao_menu_apos_morte()
         jogo.ao_menu.assert_called_once_with()
