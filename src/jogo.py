@@ -8,7 +8,7 @@ import customtkinter as ctk
 from PIL import Image, ImageTk
 
 from audio import AudioPassos
-from combate import atacar
+from combate import atacar, rolar_d20
 from dice_anim import AnimadorD20
 from models import Entidade
 from savegame import VERSAO_SAVE, salvar_jogo
@@ -114,6 +114,7 @@ AUDIO_PASSOS = Path(__file__).resolve().parents[1] / "assets" / "audios" / "pass
 IMAGENS_ITENS = {
     "Kit Médico": Path(__file__).resolve().parents[1] / "assets" / "itens" / "kit_medico.png",
     "Chave Dourada": Path(__file__).resolve().parents[1] / "assets" / "itens" / "pixil-frame-0 (70).png",
+    NOME_CHAVE_PRATA: Path(__file__).resolve().parents[1] / "assets" / "itens" / "Chave_prata.png",
 }
 
 # Coordenadas (x, y, largura, altura) no mundo virtual de 960x540.
@@ -851,6 +852,7 @@ class Jogo:
         self._imagem_fundo = None
         self._porta_ocupada = None
         self._porta3_popup_visivel = False
+        self._porta4_popup_visivel = False
         self._objeto_interativo_sala1 = None
         self._interacao_sala1_rolando = False
         self._estante_sala2_interativa = None
@@ -868,6 +870,7 @@ class Jogo:
             1,
         )
         self._janela_combate = None
+        self._combate_rolando = False
         self._cofre_sala1_canvas = None
         self._imagem_cofre_sala1_tk = None
         self._tela_tv_sala1_aberta = False
@@ -1365,6 +1368,8 @@ class Jogo:
         self._posicionar_dado_hud()
         if self._porta3_popup_visivel:
             self._desenhar_opcoes_porta3()
+        if self._porta4_popup_visivel:
+            self._desenhar_opcoes_porta4()
         if self._glitch_popup_visivel:
             self._desenhar_opcoes_glitch_sala2()
         if self._estante_sala2_interativa is not None:
@@ -1797,7 +1802,7 @@ class Jogo:
                 else f"ENCONTRADO: {recompensa}"
             )
         else:
-            texto = "Investigar estante"
+            texto = "Investigar (D20 10+)"
         largura = 190 * escala_x
         self.canvas.create_rectangle(
             centro_x - largura / 2,
@@ -1848,6 +1853,7 @@ class Jogo:
     def _investigar_estante_sala2(self, indice):
         if (
             self._estado != "mundo"
+            or self.sala_atual != "sala_2"
             or not self.anomalia_sala2_derrotada
             or indice not in range(len(RECOMPENSAS_ESTANTES_SALA2))
             or indice in self.estantes_sala2_investigadas
@@ -1859,14 +1865,41 @@ class Jogo:
         ):
             return
 
-        self.estantes_sala2_investigadas.append(indice)
-        recompensa = RECOMPENSAS_ESTANTES_SALA2[indice]
-        if recompensa is None:
-            self.dialogo_var.set("Você investigou a estante, mas não encontrou nada.")
+        self._remover_opcoes_estantes_sala2()
+        self._iniciar_teste_interacao(
+            10,
+            "INVESTIGAR ESTANTE",
+            lambda sucesso, _resultado: (
+                self._resultado_investigacao_estante_sala2(indice, sucesso)
+            ),
+        )
+
+    def _resultado_investigacao_estante_sala2(self, indice, sucesso):
+        if self.sala_atual != "sala_2":
+            return
+
+        if not sucesso:
+            self.dialogo_var.set(
+                "Você não conseguiu investigar. Pode tentar novamente."
+            )
         else:
-            self.inventario[recompensa] = self.inventario.get(recompensa, 0) + 1
-            self.dialogo_var.set(f"Você encontrou: {recompensa}.")
-        self._desenhar_opcoes_estantes_sala2()
+            self.estantes_sala2_investigadas.append(indice)
+            recompensa = RECOMPENSAS_ESTANTES_SALA2[indice]
+            if recompensa is None:
+                self.dialogo_var.set(
+                    "Você investigou a estante, mas não encontrou nada."
+                )
+            else:
+                self.inventario[recompensa] = self.inventario.get(recompensa, 0) + 1
+                self.dialogo_var.set(f"Você encontrou: {recompensa}.")
+
+        if _ponto_dentro(
+            ZONAS_ESTANTES_SALA2[indice],
+            self.player_x,
+            self.player_y,
+        ):
+            self._estante_sala2_interativa = indice
+            self._desenhar_opcoes_estantes_sala2()
 
     def _remover_opcoes_estantes_sala2(self):
         self.canvas.delete("estantes_sala2_popup")
@@ -2006,24 +2039,19 @@ class Jogo:
         self._estante_sala2_interativa = None
         self._janela_combate = tk.Frame(
             self.container,
-            bg="#050912",
+            bg=PAINEL,
+            padx=18,
+            pady=16,
+            highlightbackground="#B0204A",
+            highlightthickness=2,
             takefocus=True,
         )
         self._janela_combate.place(
-            relx=0,
-            rely=0,
-            relwidth=1,
-            relheight=1,
+            relx=0.985,
+            rely=0.15,
+            anchor="ne",
         )
-        painel = tk.Frame(
-            self._janela_combate,
-            bg=PAINEL,
-            padx=26,
-            pady=22,
-            highlightbackground="#B0204A",
-            highlightthickness=2,
-        )
-        painel.place(relx=0.5, rely=0.5, anchor="center")
+        painel = self._janela_combate
         tk.Label(
             painel,
             text="ANOMALIA — GLITCH",
@@ -2053,13 +2081,14 @@ class Jogo:
             bg=PAINEL,
             font=("Consolas", 10),
             justify="center",
-            wraplength=500,
+            wraplength=310,
         )
         self._combate_mensagem_label.pack(pady=(0, 12))
 
         botoes = tk.Frame(painel, bg=PAINEL)
         botoes.pack(fill="x")
         self._combate_botoes = {}
+        self._combate_rolando = False
         acoes = (
             ("punho", "Atacar com as mãos", self._acao_combate_ataque),
             (
@@ -2091,7 +2120,9 @@ class Jogo:
             self._combate_botoes[chave] = botao
         botoes.grid_columnconfigure(0, weight=1)
         botoes.grid_columnconfigure(1, weight=1)
-        self._atualizar_tela_combate("O Glitch avança na sua direção.")
+        self._atualizar_tela_combate(
+            "A luta acontece aqui na Sala 2. Escolha uma ação."
+        )
         self._janela_combate.lift()
         self._janela_combate.focus_set()
 
@@ -2103,17 +2134,22 @@ class Jogo:
             )
         )
         self._combate_mensagem_label.configure(text=mensagem)
+        bloqueado = getattr(self, "_combate_rolando", False)
+        self._combate_botoes["punho"].configure(
+            state="disabled" if bloqueado else "normal"
+        )
         for item in ITENS_USAVEIS:
             botao = self._combate_botoes[item]
             pode_usar = (
-                self.inventario.get(item, 0) > 0
+                not bloqueado
+                and self.inventario.get(item, 0) > 0
                 and self.jogador.hp < CLASSES[self.classe_atual]["hp"]
             )
             botao.configure(state="normal" if pode_usar else "disabled")
         self._combate_botoes["EMP"].configure(
             state=(
                 "normal"
-                if self.inventario.get("EMP", 0) > 0
+                if not bloqueado and self.inventario.get("EMP", 0) > 0
                 else "disabled"
             )
         )
@@ -2133,15 +2169,79 @@ class Jogo:
         )
 
     def _acao_combate_ataque(self):
-        if self._estado != "combate":
+        if self._estado != "combate" or self._combate_rolando:
             return
-        resultado = atacar(self.jogador, self.anomalia_sala2)
-        self.animador_d20.mostrar(resultado.dado)
+        self._iniciar_rolagem_combate(
+            "ATAQUE DO PLAYER",
+            self.jogador,
+            self.anomalia_sala2,
+            self._resultado_ataque_jogador,
+        )
+
+    def _iniciar_rolagem_combate(self, titulo, atacante, defensor, ao_resolver):
+        if self._estado != "combate" or self._combate_rolando:
+            return
+
+        self._combate_rolando = True
+        self._atualizar_tela_combate(f"{titulo}: o D20 está rolando...")
+        self._posicionar_dado_hud()
+        self.canvas.itemconfigure(self.d20_rolagem_titulo, text=titulo)
+        for item in (
+            self.d20_rolagem_imagem,
+            self.d20_rolagem_texto,
+            self.d20_rolagem_titulo,
+        ):
+            self.canvas.itemconfigure(item, state="normal")
+        self.canvas.tag_raise("hud_dado_rolagem")
+
+        def finalizar_rolagem(resultado):
+            if self._estado != "combate":
+                self._ocultar_dado_rolagem()
+                self._combate_rolando = False
+                return
+            self.animador_d20.mostrar(resultado)
+            resultado_ataque = atacar(atacante, defensor, dado=resultado)
+            self._atualizar_hud()
+            resumo = self._resumo_ataque_combate(
+                "Seu soco" if atacante is self.jogador else "A anomalia",
+                resultado_ataque,
+            )
+            self._atualizar_tela_combate(f"{titulo}\n{resumo}")
+
+            def continuar_turno():
+                self._ocultar_dado_rolagem()
+                self._combate_rolando = False
+                if self._estado == "combate":
+                    ao_resolver(resultado_ataque)
+
+            self.container.after(2500, continuar_turno)
+
+        try:
+            self.animador_d20_grande.rolar_teste(
+                finalizar_rolagem,
+                resultado=rolar_d20(),
+            )
+        except (RuntimeError, ValueError, tk.TclError) as erro:
+            self._ocultar_dado_rolagem()
+            self._combate_rolando = False
+            self._atualizar_tela_combate("Não foi possível concluir a rolagem.")
+            messagebox.showerror(
+                "Erro no combate",
+                f"Não foi possível concluir a rolagem de D20:\n{erro}",
+                parent=self.container.winfo_toplevel(),
+            )
+            self.canvas.focus_set()
+
+    def _resultado_ataque_jogador(self, resultado):
         mensagem = self._resumo_ataque_combate("Seu soco", resultado)
         self._resolver_turno_anomalia_sala2(mensagem)
 
     def _acao_combate_item(self, nome):
-        if self._estado != "combate" or self.inventario.get(nome, 0) < 1:
+        if (
+            self._estado != "combate"
+            or self._combate_rolando
+            or self.inventario.get(nome, 0) < 1
+        ):
             return
         if nome in ITENS_USAVEIS:
             hp_maximo = CLASSES[self.classe_atual]["hp"]
@@ -2174,12 +2274,18 @@ class Jogo:
             )
             return
 
-        resultado = atacar(self.anomalia_sala2, self.jogador)
-        self.animador_d20.mostrar(resultado.dado)
-        mensagem_inimigo = self._resumo_ataque_combate(
-            "O Glitch",
-            resultado,
+        self._iniciar_rolagem_combate(
+            "ATAQUE DA ANOMALIA",
+            self.anomalia_sala2,
+            self.jogador,
+            lambda resultado: self._resultado_ataque_glitch(
+                mensagem,
+                resultado,
+            ),
         )
+
+    def _resultado_ataque_glitch(self, mensagem, resultado):
+        mensagem_inimigo = self._resumo_ataque_combate("O Glitch", resultado)
         if self.jogador.hp <= 0:
             self._atualizar_hud()
             self._fechar_combate_anomalia_sala2()
@@ -2205,6 +2311,7 @@ class Jogo:
         if getattr(self, "_janela_combate", None) is not None:
             self._janela_combate.destroy()
             self._janela_combate = None
+        self._combate_rolando = False
         self._estado = "mundo"
         self.teclas_pressionadas.clear()
         self.canvas.focus_set()
@@ -2638,6 +2745,8 @@ class Jogo:
                 return
             if self._porta_ocupada["numero"] == 3:
                 self._remover_opcoes_porta3()
+            elif self._porta_ocupada["numero"] == 4:
+                self._remover_opcoes_porta4()
             self._porta_ocupada = None
 
         for porta in PORTAS_CORREDOR:
@@ -2653,6 +2762,8 @@ class Jogo:
                         self._abrir_porta(3)
                     else:
                         self._desenhar_opcoes_porta3()
+                elif porta["numero"] == 4:
+                    self._desenhar_opcoes_porta4()
                 else:
                     self._abrir_porta(porta["numero"])
                 return
@@ -2664,6 +2775,91 @@ class Jogo:
             and x <= self.player_x <= x + largura
             and y <= self.player_y <= y + altura
         )
+
+    def _jogador_perto_da_porta4(self):
+        x, y, largura, altura = PORTAS_CORREDOR[3]["retangulo"]
+        return (
+            self.sala_atual == "corredor"
+            and x <= self.player_x <= x + largura
+            and y <= self.player_y <= y + altura
+        )
+
+    def _desenhar_opcoes_porta4(self):
+        if not self._jogador_perto_da_porta4():
+            return
+
+        self.canvas.delete("porta4_popup")
+        self._porta4_popup_visivel = True
+        escala_x = self.canvas.winfo_width() / LARGURA_MUNDO
+        escala_y = self.canvas.winfo_height() / ALTURA_MUNDO
+        centro_x = 690 * escala_x
+        topo = 290 * escala_y
+        meia_largura = 205 * escala_x
+        tem_chave = self.inventario.get(NOME_CHAVE_PRATA, 0) > 0
+        self.canvas.create_rectangle(
+            centro_x - meia_largura,
+            topo,
+            centro_x + meia_largura,
+            topo + 88 * escala_y,
+            fill=FUNDO,
+            outline=DESTAQUE if tem_chave else "#FFE08A",
+            width=2,
+            tags=("porta4_popup",),
+        )
+        self.canvas.create_text(
+            centro_x,
+            topo + 20 * escala_y,
+            text="PORTA 4 — SALA 4",
+            fill=TEXTO,
+            font=("Consolas", 12, "bold"),
+            tags=("porta4_popup",),
+        )
+        tag_acao = "porta4_chave"
+        self.canvas.create_text(
+            centro_x,
+            topo + 54 * escala_y,
+            text=(
+                "ABRIR COM A CHAVE DE PRATA"
+                if tem_chave
+                else "TRANCADA — PRECISA DA CHAVE DE PRATA"
+            ),
+            fill=DESTAQUE if tem_chave else SUAVE,
+            font=("Consolas", 10, "bold"),
+            tags=("porta4_popup", tag_acao),
+        )
+        if tem_chave:
+            self.canvas.tag_bind(
+                tag_acao,
+                "<Button-1>",
+                lambda _event: self._acao_porta4("chave"),
+            )
+            self.canvas.tag_bind(
+                tag_acao,
+                "<Enter>",
+                lambda _event: self.canvas.configure(cursor="hand2"),
+            )
+            self.canvas.tag_bind(
+                tag_acao,
+                "<Leave>",
+                lambda _event: self.canvas.configure(cursor=""),
+            )
+        self.canvas.tag_raise("porta4_popup")
+
+    def _remover_opcoes_porta4(self):
+        self.canvas.delete("porta4_popup")
+        self.canvas.configure(cursor="")
+        self._porta4_popup_visivel = False
+
+    def _acao_porta4(self, acao):
+        if (
+            self._estado != "mundo"
+            or not self._jogador_perto_da_porta4()
+            or acao != "chave"
+            or self.inventario.get(NOME_CHAVE_PRATA, 0) < 1
+        ):
+            return
+        self._remover_opcoes_porta4()
+        self._abrir_porta(4)
 
     def _desenhar_opcoes_porta3(self):
         if not self._jogador_perto_da_porta3():
@@ -2926,11 +3122,17 @@ class Jogo:
             self._mostrar_tela_morte(texto, "VOCÊ MORREU")
             return
         else:
-            texto = f"Você entrou na porta {numero}"
+            if numero == 4 and self.inventario.get(NOME_CHAVE_PRATA, 0) < 1:
+                self.dialogo_var.set(
+                    "A porta 4 está trancada. Você precisa da Chave de Prata."
+                )
+                return
+            texto = "Você entrou na Sala 4" if numero == 4 else f"Você entrou na porta {numero}"
             self._estado = "porta"
         self.teclas_pressionadas.clear()
         self.audio_passos.parar()
         self._remover_opcoes_porta3()
+        self._remover_opcoes_porta4()
 
         self.tela_porta = tk.Frame(self.container, bg="black", takefocus=True)
         self.tela_porta.place(relx=0, rely=0, relwidth=1, relheight=1)

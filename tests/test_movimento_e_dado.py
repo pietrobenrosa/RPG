@@ -19,6 +19,7 @@ from jogo import (
     IMAGEM_COFRE_SALA1,
     IMAGEM_SALA1_TV_LIGADA,
     ITEM_CHAVE_DOURADA,
+    IMAGENS_ITENS,
     ITENS_USAVEIS,
     Jogo,
     NOME_CHAVE_FENDA,
@@ -158,7 +159,36 @@ class TestMovimentoBasico(unittest.TestCase):
 
         jogo._carregar_sala.assert_called_once_with("sala_hibernacao", (700, 260))
 
-    def test_quatro_portas_do_corredor_abrem_a_tela_correspondente(self):
+    def test_porta4_exige_chave_de_prata_antes_de_abrir(self):
+        jogo = Jogo.__new__(Jogo)
+        jogo._estado = "mundo"
+        jogo.sala_atual = "corredor"
+        jogo.player_x, jogo.player_y = 670, 450
+        jogo._porta_ocupada = None
+        jogo.inventario = {}
+        jogo._abrir_porta = Mock()
+        jogo._desenhar_opcoes_porta4 = Mock()
+
+        jogo._verificar_porta_corredor()
+
+        jogo._abrir_porta.assert_not_called()
+        jogo._desenhar_opcoes_porta4.assert_called_once_with()
+
+        jogo._remover_opcoes_porta4 = Mock()
+        jogo._acao_porta4("chave")
+        jogo._abrir_porta.assert_not_called()
+
+        jogo.inventario[NOME_CHAVE_PRATA] = 1
+        jogo._acao_porta4("chave")
+        jogo._remover_opcoes_porta4.assert_called_once_with()
+        jogo._abrir_porta.assert_called_once_with(4)
+        self.assertEqual(jogo.inventario[NOME_CHAVE_PRATA], 1)
+
+    def test_chave_de_prata_usa_o_asset_do_inventario(self):
+        self.assertEqual(IMAGENS_ITENS[NOME_CHAVE_PRATA].name, "Chave_prata.png")
+        self.assertTrue(IMAGENS_ITENS[NOME_CHAVE_PRATA].is_file())
+
+    def test_portas_do_corredor_mantem_destinos_e_trava_a_porta4(self):
         posicoes = {
             1: (305, 450),
             2: (385, 332),
@@ -171,6 +201,8 @@ class TestMovimentoBasico(unittest.TestCase):
         jogo._abrir_porta = Mock()
         jogo._carregar_sala = Mock()
         jogo._desenhar_opcoes_porta3 = Mock()
+        jogo._desenhar_opcoes_porta4 = Mock()
+        jogo.inventario = {}
         jogo.porta3_aberta = False
 
         for porta in PORTAS_CORREDOR:
@@ -187,11 +219,13 @@ class TestMovimentoBasico(unittest.TestCase):
                 jogo._abrir_porta.assert_not_called()
                 jogo._desenhar_opcoes_porta3.assert_called_once_with()
             else:
-                jogo._abrir_porta.assert_called_with(porta["numero"])
+                jogo._abrir_porta.assert_not_called()
+                jogo._desenhar_opcoes_porta4.assert_called_once_with()
             jogo._porta_ocupada = None
             jogo._abrir_porta.reset_mock()
             jogo._carregar_sala.reset_mock()
             jogo._desenhar_opcoes_porta3.reset_mock()
+            jogo._desenhar_opcoes_porta4.reset_mock()
 
     def test_saida_da_sala1_leva_de_volta_ao_corredor(self):
         jogo = Jogo.__new__(Jogo)
@@ -380,26 +414,45 @@ class TestSala2(unittest.TestCase):
             [call(301), call(301)],
         )
 
-    def test_estantes_entregam_recompensas_somente_uma_vez(self):
+    def test_estantes_exigem_d20_10_e_recompensam_apenas_no_sucesso(self):
         jogo = Jogo.__new__(Jogo)
         jogo._estado = "mundo"
+        jogo.sala_atual = "sala_2"
         jogo.anomalia_sala2_derrotada = True
         jogo.estantes_sala2_investigadas = []
         jogo.inventario = {}
         jogo.dialogo_var = Mock()
         jogo._desenhar_opcoes_estantes_sala2 = Mock()
+        jogo._remover_opcoes_estantes_sala2 = Mock()
+        jogo._iniciar_teste_interacao = Mock()
 
         jogo.player_x, jogo.player_y = 270, 280
         jogo._investigar_estante_sala2(0)
+        chamada = jogo._iniciar_teste_interacao.call_args
+        self.assertEqual(chamada.args[:2], (10, "INVESTIGAR ESTANTE"))
+        self.assertTrue(callable(chamada.args[2]))
+        self.assertEqual(jogo.inventario, {})
+        self.assertEqual(jogo.estantes_sala2_investigadas, [])
+
+        chamada.args[2](False, 4)
+        self.assertEqual(jogo.inventario, {})
+        self.assertEqual(jogo.estantes_sala2_investigadas, [])
+        self.assertIn("tentar novamente", jogo.dialogo_var.set.call_args.args[0])
+
+        jogo._investigar_estante_sala2(0)
+        jogo._iniciar_teste_interacao.call_args.args[2](True, 16)
         jogo._investigar_estante_sala2(0)
         self.assertEqual(jogo.inventario, {NOME_CHAVE_PRATA: 1})
+        self.assertEqual(jogo.estantes_sala2_investigadas, [0])
 
         jogo.player_x, jogo.player_y = 477, 280
         jogo._investigar_estante_sala2(1)
         self.assertEqual(jogo.inventario, {NOME_CHAVE_PRATA: 1})
+        jogo._iniciar_teste_interacao.call_args.args[2](True, 10)
 
         jogo.player_x, jogo.player_y = 697, 280
         jogo._investigar_estante_sala2(2)
+        jogo._iniciar_teste_interacao.call_args.args[2](True, 20)
         self.assertEqual(
             jogo.inventario,
             {NOME_CHAVE_PRATA: 1, NOME_CHAVE_FENDA: 1},
@@ -452,42 +505,37 @@ class TestSala2(unittest.TestCase):
             "EMP ativado.\nO Glitch perde este turno por causa do EMP."
         )
 
-    @patch("jogo.atacar")
-    def test_turno_da_anomalia_ataca_o_jogador_com_d20(self, atacar):
-        from combate import ResultadoAtaque
-
-        atacar.return_value = ResultadoAtaque(dado=11, dano=4)
+    def test_turno_da_anomalia_inicia_rolagem_animada(self):
         jogo = Jogo.__new__(Jogo)
+        jogo._estado = "combate"
+        jogo._combate_rolando = False
         jogo.anomalia_sala2 = Mock(hp=10)
         jogo.jogador = Mock(hp=20)
         jogo._anomalia_paralisada = False
-        jogo.animador_d20 = Mock()
-        jogo._atualizar_hud = Mock()
-        jogo._atualizar_tela_combate = Mock()
+        jogo._iniciar_rolagem_combate = Mock()
 
         jogo._resolver_turno_anomalia_sala2("Você atacou.")
 
-        atacar.assert_called_once_with(jogo.anomalia_sala2, jogo.jogador)
-        jogo.animador_d20.mostrar.assert_called_once_with(11)
-        jogo._atualizar_tela_combate.assert_called_once_with(
-            "Você atacou.\nO Glitch tirou 11 no D20 e causou 4 de dano."
+        chamada = jogo._iniciar_rolagem_combate.call_args
+        self.assertEqual(
+            chamada.args[:3],
+            ("ATAQUE DA ANOMALIA", jogo.anomalia_sala2, jogo.jogador),
         )
+        self.assertTrue(callable(chamada.args[3]))
 
-    @patch("jogo.atacar")
-    def test_hp_zero_mostra_a_morte_dramatica(self, atacar):
+    def test_ataque_do_glitch_apos_rolagem_mostra_a_morte(self):
         from combate import ResultadoAtaque
 
-        atacar.return_value = ResultadoAtaque(dado=12, dano=4)
         jogo = Jogo.__new__(Jogo)
-        jogo.anomalia_sala2 = Mock(hp=10)
         jogo.jogador = Mock(hp=0)
-        jogo._anomalia_paralisada = False
-        jogo.animador_d20 = Mock()
         jogo._atualizar_hud = Mock()
         jogo._fechar_combate_anomalia_sala2 = Mock()
         jogo._mostrar_tela_morte = Mock()
 
-        jogo._resolver_turno_anomalia_sala2("Você atacou.")
+        jogo._resultado_ataque_glitch(
+            "Você atacou.",
+            ResultadoAtaque(dado=12, dano=4),
+        )
 
         jogo._fechar_combate_anomalia_sala2.assert_called_once_with()
         jogo._mostrar_tela_morte.assert_called_once_with(
@@ -496,25 +544,71 @@ class TestSala2(unittest.TestCase):
         )
 
     @patch("jogo.atacar")
-    def test_soco_usa_resolucao_d20_e_mostra_resultado(self, atacar):
+    @patch("jogo.rolar_d20", return_value=12)
+    def test_soco_anima_o_mesmo_resultado_antes_de_causar_dano(
+        self,
+        rolar_dado,
+        atacar,
+    ):
         from combate import ResultadoAtaque
 
         resultado = ResultadoAtaque(dado=12, dano=6)
         atacar.return_value = resultado
         jogo = Jogo.__new__(Jogo)
         jogo._estado = "combate"
+        jogo._combate_rolando = False
         jogo.jogador = Mock()
         jogo.anomalia_sala2 = Mock()
+        jogo.canvas = Mock()
+        jogo.d20_rolagem_imagem = 1
+        jogo.d20_rolagem_texto = 2
+        jogo.d20_rolagem_titulo = 3
         jogo.animador_d20 = Mock()
+        jogo.animador_d20_grande = Mock()
+        jogo.animador_d20_grande.rolar_teste.side_effect = (
+            lambda callback, resultado: callback(resultado)
+        )
+        jogo._posicionar_dado_hud = Mock()
+        jogo._ocultar_dado_rolagem = Mock()
+        jogo._atualizar_tela_combate = Mock()
+        jogo._atualizar_hud = Mock()
+        jogo.container = Mock()
         jogo._resolver_turno_anomalia_sala2 = Mock()
 
         jogo._acao_combate_ataque()
 
-        atacar.assert_called_once_with(jogo.jogador, jogo.anomalia_sala2)
+        rolar_dado.assert_called_once_with()
+        jogo.animador_d20_grande.rolar_teste.assert_called_once()
+        self.assertEqual(
+            jogo.canvas.itemconfigure.call_args_list[0].args,
+            (jogo.d20_rolagem_titulo,),
+        )
+        self.assertEqual(
+            jogo.canvas.itemconfigure.call_args_list[0].kwargs["text"],
+            "ATAQUE DO PLAYER",
+        )
+        atacar.assert_called_once_with(
+            jogo.jogador,
+            jogo.anomalia_sala2,
+            dado=12,
+        )
         jogo.animador_d20.mostrar.assert_called_once_with(12)
+        jogo.container.after.assert_called_once()
+        self.assertEqual(jogo.container.after.call_args.args[0], 2500)
+        self.assertTrue(jogo._combate_rolando)
+        jogo._ocultar_dado_rolagem.assert_not_called()
+        self.assertIn(
+            "ATAQUE DO PLAYER",
+            jogo._atualizar_tela_combate.call_args.args[0],
+        )
+
+        jogo.container.after.call_args.args[1]()
+
         jogo._resolver_turno_anomalia_sala2.assert_called_once_with(
             "Seu soco tirou 12 no D20 e causou 6 de dano."
         )
+        jogo._ocultar_dado_rolagem.assert_called_once_with()
+        self.assertFalse(jogo._combate_rolando)
 
     def test_texto_da_morte_e_digitado_gradualmente(self):
         jogo = Jogo.__new__(Jogo)
